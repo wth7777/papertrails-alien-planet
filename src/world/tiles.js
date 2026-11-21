@@ -43,7 +43,7 @@ export function socketsOf(id, rot = 0) {
   return s;
 }
 
-export const SOCKET_CODE = Object.freeze({ grass: 0, path: 1, river: 2 });
+export const SOCKET_CODE = Object.freeze({ grass: 0, path: 1, river: 2, rail: 3, crossing: 4 });
 
 /**
  * Solver options: one per (tile, distinct rotated socket signature). Rotations that give the same
@@ -70,7 +70,7 @@ export const OPTIONS = (() => {
 })();
 
 /** Tiles the solver needs in every biome (sockets must always connect across biome borders): never banned. */
-export const UNIVERSAL_TILES = Object.freeze(['meadow', 'path_straight', 'path_corner', 'path_t', 'path_cross', 'path_end', 'river_straight', 'river_corner', 'river_source', 'bridge']);
+export const UNIVERSAL_TILES = Object.freeze(['meadow', 'path_straight', 'path_corner', 'path_t', 'path_cross', 'path_end', 'river_straight', 'river_corner', 'river_source', 'bridge', 'rail_straight', 'rail_corner', 'crossing', 'depot']);
 
 /** WFC weight multiplier of a tile in a biome (schema: top of core/models.js). 0 = not allowed there. */
 export function biomeMultiplier(tileOrId, biomeId) {

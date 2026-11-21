@@ -9,7 +9,7 @@
 // rot = number of clockwise quarter turns seen from above (+Y looking down): what was at N moves to E.
 // Runtime: tileGroup.rotation.y = rotToY(rot) = -rot * PI / 2.
 
-export const SOCKETS = ['grass', 'path', 'river'];
+export const SOCKETS = ['grass', 'path', 'river', 'rail', 'crossing'];
 export const DIRS = ['n', 'e', 's', 'w'];
 /** Cell offset for each direction: n = -Z, e = +X, s = +Z, w = -X. */
 export const DIR_OFFSET = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
@@ -95,7 +95,16 @@ export const MODELS = {
   barn_farm: { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { heartland: 0.16, blossom: 0.12 } },
   market_square: { sockets: S(p, p, p, p), tags: ['path', 'landmark'], biomes: { heartland: 1.0, blossom: 0.6 } },
   manor: { sockets: S(g, g, p, g), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 0.7, blossom: 0.5 } },
-};
+
+    // --- Laramie geographic constraints (socketed connectors) ---------------------------------
+      // rail: N-S only, double track. Used for UP Main Line.
+      rail_straight: { sockets: S('rail', g, 'rail', g), tags: ['rail'] }, // N-S
+      rail_corner: { sockets: S('rail', 'rail', g, g), tags: ['rail'] }, // N-E
+      // crossing: pedestrian crossings at intersections
+      crossing: { sockets: S('crossing', 'crossing', 'crossing', 'crossing'), tags: ['crossing'] },
+      // depot: custom tile for train station
+      depot: { sockets: S('rail', 'path', 'rail', 'path'), tags: ['rail', 'path', 'landmark'] },
+    };
 
 export const MODEL_IDS = Object.keys(MODELS);
 export const FALLBACK_MODEL = 'meadow';

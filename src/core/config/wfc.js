@@ -80,6 +80,10 @@ export const wfc = {
     meadow: 1.5, meadow_flowers: 0.85, hills: 1.15, forest: 1.1, grove: 1.0, rocks: 1.0, pond: 1.0, windmill: 1.0,
     path_straight: 3.0, path_corner: 4.0, path_t: 1.0, path_cross: 1.4, path_end: 1.8, lantern_post: 1.0,
     house: 4.0, village: 2.2, river_straight: 1.0, river_corner: 1.0, river_source: 1.0, bridge: 1.0,
+    // Laramie geographic constraint tiles
+    rail_straight: 1.0, rail_corner: 1.0,
+    crossing: 1.0,
+    depot: 1.0,
     // biome pass tiles
     desert_dunes: 0.8, desert_dunes_b: 0.8, desert_dunes_c: 0.8, desert_cacti: 1.0, desert_camp: 3.0, desert_oasis: 1.3, desert_market: 2.2, desert_ruin: 1.7, snow_pines: 1.0, snow_drifts: 1.0, snow_cabin: 4.0, snow_hamlet: 2.2, frozen_pond: 1.0, blossom_orchard: 1.1, blossom_garden: 1.0, blossom_gazebo: 2.0, blossom_lane: 2.4, deep_pines: 1.1, mushroom_glade: 1.5, fallen_log: 1.0, watchtower: 2.8, church: 1.2, barn_farm: 0.6, market_square: 0.9, manor: 1.2,
     // round 3 (tiles): hamlet set. integrator (round 3): wfc.js treats village / village_b / village_green as one hamlet family

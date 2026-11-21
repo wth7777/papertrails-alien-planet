@@ -9,5 +9,11 @@ export default defineConfig({
     outDir: 'dist',
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 1500,
-  },
+    rollupOptions: {
+      input: {
+        main: './index.html',
+        laramie: './index-laramie.html'
+      }
+    }
+  }
 });

@@ -160,6 +160,7 @@ async function boot() {
   if (life) life.update(0, traveller.position, follow.camera);
   lights.update(0, traveller, follow.camera);
   render(0);
+  window.__debug = { loop, game, traveller, world, wfc, renderer, scene, camera: follow.camera, assets, materials, post, follow, controls, views, lights, audio, music, daynight, life, animals, book, state };
   loop.start();
 }
 
