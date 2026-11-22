@@ -972,14 +972,38 @@ export function demToHeightField(demSamplesGeoJSON) {
  */
 export async function buildLaramieConstraints() {
   const basePath = './gis';
+  const enableDiag = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('diag') === '1';
+  
+  function diagLog(...args) {
+    if (enableDiag) console.log('[DIAG]', ...args);
+  }
+  
+  function diagError(...args) {
+    if (enableDiag) console.error('[DIAG]', ...args);
+  }
   
   const load = async (filename) => {
-    const response = await fetch(`${basePath}/${filename}`);
-    if (!response.ok) throw new Error(`Failed to load ${filename}: ${response.status}`);
-    return response.json();
+    diagLog('GIS fetch start:', filename);
+    const controller = new AbortController();
+    const timeout = enableDiag ? setTimeout(() => controller.abort(), 15000) : null;
+    try {
+      const baseUrl = new URL(basePath + '/', typeof window !== 'undefined' ? window.location.href : 'http://localhost').href;
+      const response = await fetch(`${baseUrl}${filename}`, enableDiag ? { signal: controller.signal } : {});
+      if (timeout) clearTimeout(timeout);
+      diagLog('GIS fetch response:', filename, response.status, response.headers.get('content-type'));
+      if (!response.ok) throw new Error(`Failed to load ${filename}: ${response.status}`);
+      const json = await response.json();
+      diagLog('GIS fetch parsed:', filename, json.type, json.features?.length || 0, 'features');
+      return json;
+    } catch (err) {
+      if (timeout) clearTimeout(timeout);
+      if (enableDiag && err.name === 'AbortError') throw new Error(`GIS fetch timeout (15s): ${filename}`);
+      diagError('GIS fetch failed:', filename, err);
+      throw err;
+    }
   };
   
-  console.log('[Laramie] Building constraint maps...');
+  diagLog('[Laramie] Building constraint maps — starting 9 fetches...');
 
       const [
         streets,
@@ -1002,12 +1026,15 @@ export async function buildLaramieConstraints() {
         load('pt_parks.geojson'),
         load('pt_dem_sample_points.geojson')
       ]);
+      
+      diagLog('[Laramie] Promise.all resolved — all 9 GIS files loaded');
 
-      console.log('[Laramie] Building constraint maps...');
+      diagLog('[Laramie] Building constraint maps...');
 
       // Build building registry (new system)
       const { registry: buildingRegistry, collisions: buildingCollisions, excludedCount: buildingExcluded } =
         buildBuildingRegistry(buildings);
+      diagLog('[Laramie] Building registry done:', { total: buildingRegistry.length, excluded: buildingExcluded, collisions: buildingCollisions.length });
 
       if (buildingCollisions.length > 0) {
         console.warn('[Laramie] Building tile collisions:', buildingCollisions.length);
@@ -1015,36 +1042,62 @@ export async function buildLaramieConstraints() {
           console.warn(`  Cell (${c.tile[0]}, ${c.tile[1]}):`, c.buildings.map(b => `${b.name || 'unnamed'} (OSM ${b.osmId}, ${b.area.toFixed(1)}m²)`).join(', '));
         }
       }
-      console.log('[Laramie] Building registry:', {
-        total: buildingRegistry.length,
-        excluded: buildingExcluded,
-        collisions: buildingCollisions.length
-      });
+
+      diagLog('[Laramie] streetsToConstraints...');
+      const streetsConstraints = streetsToConstraints(streets, intersections);
+      diagLog('[Laramie] streetsToConstraints done:', { chunks: streetsConstraints.size });
+      
+      diagLog('[Laramie] crossingsToConstraints...');
+      const crossingsConstraints = crossingsToConstraints(crossings);
+      diagLog('[Laramie] crossingsToConstraints done:', { chunks: crossingsConstraints.size });
+      
+      diagLog('[Laramie] sidewalksToConstraints...');
+      const sidewalksConstraints = sidewalksToConstraints(sidewalks);
+      diagLog('[Laramie] sidewalksToConstraints done:', { chunks: sidewalksConstraints.size });
+      
+      diagLog('[Laramie] buildingsToConstraints (legacy)...');
+      const buildingsConstraints = buildingsToConstraints(buildings);
+      diagLog('[Laramie] buildingsToConstraints done:', { cells: buildingsConstraints.size });
+      
+      diagLog('[Laramie] landmarksToConstraints...');
+      const landmarksConstraints = landmarksToConstraints(landmarks);
+      diagLog('[Laramie] landmarksToConstraints done:', { cells: landmarksConstraints.size });
+      
+      diagLog('[Laramie] railwaysToConstraints...');
+      const railwaysConstraints = railwaysToConstraints(railways);
+      diagLog('[Laramie] railwaysToConstraints done:', { chunks: railwaysConstraints.size });
+      
+      diagLog('[Laramie] parksToConstraints...');
+      const parksConstraints = parksToConstraints(parks);
+      diagLog('[Laramie] parksToConstraints done:', { cells: parksConstraints.size });
+      
+      diagLog('[Laramie] demToHeightField...');
+      const heightField = demToHeightField(demSamples);
+      diagLog('[Laramie] demToHeightField done');
 
       const constraints = {
-                streets: streetsToConstraints(streets, intersections),
-                crossings: crossingsToConstraints(crossings),
-                sidewalks: sidewalksToConstraints(sidewalks),
-                buildings: buildingsToConstraints(buildings), // legacy Map for backward compat
+                streets: streetsConstraints,
+                crossings: crossingsConstraints,
+                sidewalks: sidewalksConstraints,
+                buildings: buildingsConstraints, // legacy Map for backward compat
                 buildingRegistry: buildingRegistry, // NEW: authoritative registry
                 buildingCollisions: buildingCollisions,
-                landmarks: landmarksToConstraints(landmarks),
-                railways: railwaysToConstraints(railways),
-                parks: parksToConstraints(parks),
-                heightField: demToHeightField(demSamples),
+                landmarks: landmarksConstraints,
+                railways: railwaysConstraints,
+                parks: parksConstraints,
+                heightField: heightField,
 
                 raw: { streets, intersections, crossings, sidewalks, buildings, landmarks, railways, parks }
               };
   
-  console.log('[Laramie] Constraints built:', {
-    streetChunks: constraints.streets.size,
-    buildingCells: constraints.buildings.size,
-    buildingRegistry: buildingRegistry.length,
-    landmarks: constraints.landmarks.size,
-    railwayChunks: constraints.railways.size,
-    parkCells: constraints.parks.size
-  });
-  
+      diagLog('[Laramie] Constraints built:', {
+        streetChunks: constraints.streets.size,
+        buildingCells: constraints.buildings.size,
+        buildingRegistry: buildingRegistry.length,
+        landmarks: constraints.landmarks.size,
+        railwayChunks: constraints.railways.size,
+        parkCells: constraints.parks.size
+      });
   return constraints;
 }
 
@@ -1061,6 +1114,7 @@ export function applyConstraintsToChunk(wfc, cx, cz, constraints) {
     trunkMask: new Uint8Array(NN),
     railMask: new Uint8Array(NN),
     railTypeMask: new Uint8Array(NN),
+    railDirMask: new Uint8Array(NN),
     crossingMask: new Uint8Array(NN),
     sidewalkMask: new Uint8Array(NN),
     forcedTiles: new Map(),

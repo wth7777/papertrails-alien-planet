@@ -44,10 +44,10 @@ const COORD_LIMIT = 1 << 24;
 const NO = OPTIONS.length;
 const SIG = new Uint8Array(NO * 4);
 const OPT_T = new Uint8Array(NO);
-const MASK_LO = new Int32Array(12); // [dir*3 + socket] -> options having that socket on that side
-const MASK_HI = new Int32Array(12);
-const MASK_EX = new Int32Array(12); // biome pass: third word (options 64..95)
-const MASK_EX2 = new Int32Array(12); // biome pass: fourth word (options 96..127)
+const MASK_LO = new Int32Array(20); // [dir*5 + socket] -> options having that socket on that side
+const MASK_HI = new Int32Array(20);
+const MASK_EX = new Int32Array(20); // biome pass: third word (options 64..95)
+const MASK_EX2 = new Int32Array(20); // biome pass: fourth word (options 96..127)
 if (NO > 128) throw new Error('wfc: more than 128 solver options (' + NO + '); widen the domain bitmask');
 const PATH_BITS = new Uint8Array(NO); // path sockets of an option as a 4-bit mask
 for (let o = 0; o < NO; o++) {
@@ -55,10 +55,10 @@ for (let o = 0; o < NO; o++) {
   for (let d = 0; d < 4; d++) {
     const s = OPTIONS[o].sig[d];
     SIG[o * 4 + d] = s;
-    if (o < 32) MASK_LO[d * 3 + s] |= 1 << o;
-    else if (o < 64) MASK_HI[d * 3 + s] |= 1 << (o - 32);
-    else if (o < 96) MASK_EX[d * 3 + s] |= 1 << (o - 64);
-    else MASK_EX2[d * 3 + s] |= 1 << (o - 96);
+    if (o < 32) MASK_LO[d * 5 + s] |= 1 << o;
+    else if (o < 64) MASK_HI[d * 5 + s] |= 1 << (o - 32);
+    else if (o < 96) MASK_EX[d * 5 + s] |= 1 << (o - 64);
+    else MASK_EX2[d * 5 + s] |= 1 << (o - 96);
     if (s === P) PATH_BITS[o] |= BIT[d];
   }
 }
@@ -382,7 +382,9 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
   // ============================================================
   // LARAMIE GEOGRAPHIC CONSTRAINTS STATE (shared between plan and computeWeights)
   // ============================================================
-  let _geoState = null;
+  // Mutable container for _geoState — avoids minifier closure-variable issues
+  // when createWFC is duplicated across bundle exports.
+  const _geoStateRef = { value: null };
   let geoState = null;
   let hasGeoConstraints = false;
   let geoTrunkMask = null;
@@ -439,9 +441,9 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
     // trunkMask (roads), rivMask (railways), and req (required sockets)
     // ============================================================
     geoState = (() => {
-      if (!_geoState) _geoState = new Map();
+      if (!_geoStateRef.value) _geoStateRef.value = new Map();
       const key = `${cx},${cz}`;
-      return _geoState.get(key) || null;
+      return _geoStateRef.value.get(key) || null;
     })();
 
     hasGeoConstraints = geoState !== null;
@@ -703,7 +705,10 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       }
     }
     // no 2x2 knot of road (tight squiggles, one-cell detour bumps, mini ring roads)
-    if (!isOrigin && attempt < 4) {
+    // The 2x2 road-knot rule shapes procedurally generated lanes. GIS streets are
+    // authoritative and are rasterised 2-3 cells wide, so real blocks always contain
+    // 2x2 trunk quads -- the rule must not reject them.
+    if (!isOrigin && attempt < 4 && !hasGeoConstraints) {
       for (let z = 0; z < N - 1; z++) for (let x = 0; x < N - 1; x++) {
         const i = z * N + x;
         if (trunkMask[i] && trunkMask[i + 1] && trunkMask[i + N] && trunkMask[i + N + 1]) return false;
@@ -713,7 +718,9 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
     for (let i = 0; i < NN; i++) {
       const rm = rivMask[i];
       const tm = trunkMask[i];
-      if (rm && tm && !((rm === 5 && tm === 10) || (rm === 10 && tm === 5))) return false;
+      // In Laramie the "river" mask carries the railway, and a railway crossing a road
+      // is real geometry -- the procedural bridge rule must not reject GIS chunks.
+      if (!hasGeoConstraints && rm && tm && !((rm === 5 && tm === 10) || (rm === 10 && tm === 5))) return false;
     }
     // required sockets
     for (let i = 0; i < NN; i++) {
@@ -818,6 +825,10 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
         }
       }
     }
+    // The maximum straight-run limit bounds procedurally generated lanes. GIS streets
+    // are authoritative and real downtown blocks are longer than maxInnerRun, so the
+    // limit must not reject them.
+    if (!hasGeoConstraints) {
     for (let i = 0; i < NN; i++) {
       for (let d = 0; d < 2; d++) {
         const through = BIT[d] | BIT[d + 2];
@@ -826,6 +837,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
         const lim = runEdge[i * 4 + d] || runEdge[i * 4 + d + 2] ? cfg.maxBorderRun : cfg.maxInnerRun;
         if (total > lim) return false;
       }
+    }
     }
     return true;
   }
@@ -911,9 +923,6 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
             }
           }
         }
-        W[base + o] = w;
-        WL[base + o] = w > 0 ? w * Math.log(w) : 0;
-
         // ============================================================
         // LARAMIE: Geographic constraint weight boosts
         // ============================================================
@@ -980,6 +989,10 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
             }
           }
         }
+        // The Laramie geographic boosts above mutate `w`, so the solver tables must be
+        // written AFTER them -- otherwise every geographic boost is discarded.
+        W[base + o] = w;
+        WL[base + o] = w > 0 ? w * Math.log(w) : 0;
       }
     }
   }
@@ -1010,8 +1023,8 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
         let aHi = 0;
         let aEx = 0;
         let aEx2 = 0;
-        for (let s = 0; s < 3; s++) {
-          if ((lo & MASK_LO[d * 3 + s]) | (hi & MASK_HI[d * 3 + s]) | (ex & MASK_EX[d * 3 + s]) | (ex2 & MASK_EX2[d * 3 + s])) { aLo |= MASK_LO[od * 3 + s]; aHi |= MASK_HI[od * 3 + s]; aEx |= MASK_EX[od * 3 + s]; aEx2 |= MASK_EX2[od * 3 + s]; }
+        for (let s = 0; s < 5; s++) {
+          if ((lo & MASK_LO[d * 5 + s]) | (hi & MASK_HI[d * 5 + s]) | (ex & MASK_EX[d * 5 + s]) | (ex2 & MASK_EX2[d * 5 + s])) { aLo |= MASK_LO[od * 5 + s]; aHi |= MASK_HI[od * 5 + s]; aEx |= MASK_EX[od * 5 + s]; aEx2 |= MASK_EX2[od * 5 + s]; }
         }
         const nLo = domLo[j] & aLo;
         const nHi = domHi[j] & aHi;
@@ -1192,7 +1205,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       let ex2 = EX2_ALL;
       for (let d = 0; d < 4; d++) {
         const q = req[i * 4 + d];
-        if (q < 0) { lo &= MASK_LO[d * 3 + G] | MASK_LO[d * 3 + P]; hi &= MASK_HI[d * 3 + G] | MASK_HI[d * 3 + P]; ex &= MASK_EX[d * 3 + G] | MASK_EX[d * 3 + P]; ex2 &= MASK_EX2[d * 3 + G] | MASK_EX2[d * 3 + P]; } else { lo &= MASK_LO[d * 3 + q]; hi &= MASK_HI[d * 3 + q]; ex &= MASK_EX[d * 3 + q]; ex2 &= MASK_EX2[d * 3 + q]; }
+        if (q < 0) { lo &= MASK_LO[d * 5 + G] | MASK_LO[d * 5 + P]; hi &= MASK_HI[d * 5 + G] | MASK_HI[d * 5 + P]; ex &= MASK_EX[d * 5 + G] | MASK_EX[d * 5 + P]; ex2 &= MASK_EX2[d * 5 + G] | MASK_EX2[d * 5 + P]; } else { lo &= MASK_LO[d * 5 + q]; hi &= MASK_HI[d * 5 + q]; ex &= MASK_EX[d * 5 + q]; ex2 &= MASK_EX2[d * 5 + q]; }
       }
       for (let o = 0; o < NO; o++) if (!(W[i * NO + o] > 0)) { if (o < 32) lo &= ~(1 << o); else if (o < 64) hi &= ~(1 << (o - 32)); else if (o < 96) ex &= ~(1 << (o - 64)); else ex2 &= ~(1 << (o - 96)); }
       if ((lo | hi | ex | ex2) === 0) return false;
@@ -1266,8 +1279,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
     // Exceptions: forced buildings (from registry), verified landmarks
     if (hasGeoConstraints && geoParkBoosts) {
       for (let i = 0; i < NN; i++) {
-        const cellKey = `${(cx * N + (i % N) - OX)},${(cz * N + Math.floor(i / N) - OZ)}`;
-        if (!geoParkBoosts.has(cellKey)) continue;
+        if (!geoParkBoosts.has(i)) continue;
         
         // Check if this cell has a forced building or landmark
         const hasForcedBuilding = geoForcedTiles && geoForcedTiles.has(i);
@@ -1296,7 +1308,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
         
         if (removedAny) {
           if ((domLo[i] | domHi[i] | domEx[i] | domEx2[i]) === 0) {
-            console.warn(`[Laramie] Park building protection caused empty domain at cell ${i} (${cellKey})`);
+            console.warn(`[Laramie] Park building protection caused empty domain at cell ${i}`);
             return false;
           }
           enqueue(i);
@@ -1356,7 +1368,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       let bestE = Infinity;
       for (let i = 0; i < NN; i++) {
         if (res[i] >= 0) continue;
-        if (popcnt(domLo[i]) + popcnt(domHi[i]) + popcnt(domEx[i]) === 1) { res[i] = singleOf(i); continue; } // decided by propagation
+        if (popcnt(domLo[i]) + popcnt(domHi[i]) + popcnt(domEx[i]) + popcnt(domEx2[i]) === 1) { res[i] = singleOf(i); continue; } // decided by propagation
         if (!entOk[i]) { ent[i] = entropy(i, rng); entOk[i] = 1; }
         if (ent[i] < bestE) { bestE = ent[i]; best = i; }
       }
@@ -1552,7 +1564,8 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
     stats,
     chunkSize: N,
     /** Geographic constraints state for Laramie mode. */
-    _geoState,
+    get _geoState() { return _geoStateRef.value; },
+    set _geoState(v) { _geoStateRef.value = v; },
     /** Debug: how the chunk holding cell (x,z) was solved ({ attempts, fallback }). */
     chunkInfo(x, z) {
       const ch = chunkAt((sane(+x) + OX) >> 3, (sane(+z) + OZ) >> 3);

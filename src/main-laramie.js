@@ -2,6 +2,7 @@
 // Pop-up Atlas composition root with real-world geography from GIS data.
 // URL params: ?seed=N  ?quality=low|med|high  ?mute=1  ?hint=0  ?night=1  ?life=0  ?animals=0
 //            ?laramie=1  (enable Laramie geographic constraints)
+//            ?diag=1    (enable diagnostic overlay)
 
 import * as THREE from 'three';
 import { CONFIG, QUALITY, TILE_SIZE } from './core/config.js';
@@ -37,52 +38,172 @@ const quality = QUALITY[params.get('quality')] ? params.get('quality') : CONFIG.
 const muted = params.get('mute') === '1';
 const showHint = params.get('hint') !== '0';
 const isLaramie = params.get('laramie') === '1';
+const enableDiag = params.get('diag') === '1';
+
+// ---- Diagnostic Overlay (mobile-readable, enabled by ?diag=1) -------------------------------
+let diagOverlay = null;
+let diagLogs = [];
+const MAX_DIAG_LOGS = 200;
+let diagStep = 0;
+
+function diagLog(...args) {
+  const msg = args.map(a => (a && a.stack ? a.stack : String(a))).join(' ');
+  const entry = { t: Date.now(), step: ++diagStep, msg };
+  diagLogs.push(entry);
+  if (diagLogs.length > MAX_DIAG_LOGS) diagLogs.shift();
+  if (enableDiag) console.log('[DIAG]', ...args);
+}
+
+function diagError(...args) {
+  const msg = args.map(a => (a && a.stack ? a.stack : String(a))).join(' ');
+  const entry = { t: Date.now(), step: ++diagStep, msg, error: true };
+  diagLogs.push(entry);
+  if (diagLogs.length > MAX_DIAG_LOGS) diagLogs.shift();
+  if (enableDiag) console.error('[DIAG]', ...args);
+}
+
+function createDiagOverlay() {
+  if (!enableDiag) return;
+  const el = document.createElement('div');
+  el.id = 'diag-overlay';
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#0a0a0a;color:#0f0;font:11px/1.4 monospace;padding:8px;z-index:9999;max-height:50vh;overflow:auto;border-bottom:2px solid #0f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;';
+  el.innerHTML = '<b>DIAGNOSTIC MODE</b> — initializing...';
+  document.body.appendChild(el);
+  diagOverlay = el;
+  setInterval(() => {
+    if (!diagOverlay) return;
+    const lines = diagLogs.slice(-80).map(e => {
+      const prefix = e.error ? '✗ ' : '✓ ';
+      return prefix + e.msg;
+    });
+    diagOverlay.innerHTML = '<b>DIAGNOSTIC MODE</b> — frame: ' + (window.loop?.frame ?? '—') + '<br>' + lines.join('<br>');
+  }, 200);
+}
+
+window.addEventListener('error', (e) => {
+  const msg = e.error?.stack || e.message || 'Script error.';
+  const loc = e.filename ? `${e.filename}:${e.lineno}:${e.colno}` : ':0';
+  diagError('Uncaught error:', msg, 'at', loc);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const reason = e.reason;
+  const msg = reason?.stack || reason?.message || String(reason);
+  diagError('Unhandled rejection:', msg);
+});
 
 state.seed = seed;
 state.quality = quality;
 
 async function boot() {
+  createDiagOverlay();
+  diagLog('boot() started');
+  
   const canvas = document.getElementById('atlas');
   const hint = document.getElementById('hint');
+  diagLog('canvas & hint elements:', !!canvas, !!hint);
 
   const scene = new THREE.Scene();
+  diagLog('THREE.Scene created');
+  
   const { renderer, setSize: setRendererSize } = createRenderer({ canvas, quality });
+  diagLog('renderer created');
+  
   const materials = createMaterials({ quality });
+  diagLog('materials created');
+  
   const assets = await loadAssets({ materials, renderer, quality });
+  diagLog('assets loaded');
+  
   materials.setTextures(assets.textures);
+  diagLog('materials textures set');
+  
   const lights = createLights({ scene, quality });
+  diagLog('lights created');
 
   // Load geographic constraints for Laramie
   let wfc;
   let laramieConstraints = null;
   
   if (isLaramie) {
-    console.log('[Laramie] Loading geographic constraints...');
+    diagLog('[Laramie] Loading geographic constraints...');
     try {
       laramieConstraints = await buildLaramieConstraints();
-      console.log('[Laramie] Constraints loaded, creating geographic WFC...');
+      diagLog('[Laramie] Constraints loaded, creating geographic WFC...');
       wfc = createLaramieWFC({ seed, constraints: laramieConstraints });
+      diagLog('[Laramie] Geographic WFC created');
     } catch (err) {
-      console.warn('[Laramie] Failed to load constraints, falling back to base WFC:', err);
+      diagError('[Laramie] Failed to load constraints:', err);
+      diagLog('[Laramie] Falling back to base WFC');
       wfc = createWFC({ seed });
     }
   } else {
     wfc = createWFC({ seed });
+    diagLog('Base WFC created');
   }
+  diagLog('WFC ready');
 
-  const world = createWorld({ scene, assets, wfc, materials, quality });
-  const traveller = createTraveller({ scene, assets, world, materials });
-  const follow = createFollowCamera({ aspect: window.innerWidth / Math.max(1, window.innerHeight) });
-  const controls = createControls({ domElement: canvas, camera: follow.camera, traveller });
-  const views = createViews({ follow });
-  const post = createPost({ renderer, scene, camera: follow.camera, quality });
-  const audio = createPaperAudio({ muted });
-  const music = createMusic({ audio });
-  const daynight = createDayNight({ scene, night: params.get('night') === '1' });
-  const life = params.get('life') === '0' || CONFIG.life.enabled === false ? null : createLife({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed });
-  const animals = params.get('animals') === '0' || CONFIG.animals.enabled === false ? null : createAnimals({ scene, renderer, world, wfc, traveller, daynight, assets, seed, quality });
-  const game = createGame({ scene, renderer, world, wfc, traveller, follow, controls, lights, post, daynight, music, audio, life, assets, materials, seed, quality });
+  let world;
+  try { diagLog('START createWorld'); world = createWorld({ scene, assets, wfc, materials, quality }); diagLog('SUCCESS createWorld'); }
+  catch (e) { diagError('createWorld threw:', e); throw e; }
+  diagLog('world created');
+
+  let traveller;
+  try { diagLog('START createTraveller'); traveller = createTraveller({ scene, assets, world, materials }); diagLog('SUCCESS createTraveller'); }
+  catch (e) { diagError('createTraveller threw:', e); throw e; }
+  diagLog('traveller created');
+
+  let follow;
+  try { diagLog('START createFollowCamera'); follow = createFollowCamera({ aspect: window.innerWidth / Math.max(1, window.innerHeight) }); diagLog('SUCCESS createFollowCamera'); }
+  catch (e) { diagError('createFollowCamera threw:', e); throw e; }
+  diagLog('follow camera created');
+
+  let controls;
+  try { diagLog('START createControls'); controls = createControls({ domElement: canvas, camera: follow.camera, traveller }); diagLog('SUCCESS createControls'); }
+  catch (e) { diagError('createControls threw:', e); throw e; }
+  diagLog('controls created');
+
+  let views;
+  try { diagLog('START createViews'); views = createViews({ follow }); diagLog('SUCCESS createViews'); }
+  catch (e) { diagError('createViews threw:', e); throw e; }
+  diagLog('views created');
+
+  let post;
+  try { diagLog('START createPost'); post = createPost({ renderer, scene, camera: follow.camera, quality }); diagLog('SUCCESS createPost'); }
+  catch (e) { diagError('createPost threw:', e); throw e; }
+  diagLog('post-processing created');
+
+  let audio;
+  try { diagLog('START createPaperAudio'); audio = createPaperAudio({ muted }); diagLog('SUCCESS createPaperAudio'); }
+  catch (e) { diagError('createPaperAudio threw:', e); throw e; }
+  diagLog('audio created');
+
+  let music;
+  try { diagLog('START createMusic'); music = createMusic({ audio }); diagLog('SUCCESS createMusic'); }
+  catch (e) { diagError('createMusic threw:', e); throw e; }
+  diagLog('music created');
+
+  let daynight;
+  try { diagLog('START createDayNight'); daynight = createDayNight({ scene, night: params.get('night') === '1' }); diagLog('SUCCESS createDayNight'); }
+  catch (e) { diagError('createDayNight threw:', e); throw e; }
+  diagLog('daynight created');
+
+  let life;
+  try { diagLog('START createLife'); life = params.get('life') === '0' || CONFIG.life.enabled === false ? null : createLife({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed }); diagLog('SUCCESS createLife'); }
+  catch (e) { diagError('createLife threw:', e); throw e; }
+  diagLog('life created:', !!life);
+
+  let animals;
+  try { diagLog('START createAnimals'); animals = params.get('animals') === '0' || CONFIG.animals.enabled === false ? null : createAnimals({ scene, renderer, world, wfc, traveller, daynight, assets, seed, quality }); diagLog('SUCCESS createAnimals'); }
+  catch (e) { diagError('createAnimals threw:', e); throw e; }
+  diagLog('animals created:', !!animals);
+
+  let game;
+  try { diagLog('START createGame'); game = createGame({ scene, renderer, world, wfc, traveller, follow, controls, lights, post, daynight, music, audio, life, assets, materials, seed, quality }); diagLog('SUCCESS createGame'); }
+  catch (e) { diagError('createGame threw:', e); throw e; }
+  diagLog('game created');
+  
   follow.setAssistGate(game.modal);
+  diagLog('assist gate set');
 
   window.addEventListener('keydown', (e) => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -100,41 +221,55 @@ async function boot() {
 
   const plainDepth = new THREE.MeshDepthMaterial();
   scene.traverse((o) => { if (o.isMesh && !o.isBatchedMesh && !o.isInstancedMesh && o.castShadow && !o.customDepthMaterial) o.customDepthMaterial = plainDepth; });
+  diagLog('plainDepth material set');
 
   const idle = { x: 0, z: 0 };
   const _right = new THREE.Vector3();
 
   function update(dt) {
-    state.time = loop.time;
-    state.frame = loop.frame;
-    const input = controls.getInput(dt) || idle;
-    traveller.update(dt, game.modal() ? idle : input);
-    const p = traveller.position;
-    const t = state.traveller;
-    t.x = p.x; t.y = p.y; t.z = p.z;
-    t.dirX = traveller.moveDir.x; t.dirZ = traveller.moveDir.z; t.speed = traveller.speed;
-    _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
-    const rl = hypot2(_right.x, _right.z) || 1;
-    state.listener.x = p.x; state.listener.z = p.z;
-    state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
-    world.update(dt, p, traveller.moveDir);
-    views.update(dt);
-    follow.update(dt, traveller);
-    daynight.update(dt);
-    if (life) life.update(dt, p, follow.camera);
-    if (animals) animals.update(dt);
-    game.update(dt);
-    lights.update(dt, traveller, follow.camera);
-    materials.update(dt);
+    try {
+      state.time = loop.time;
+      state.frame = loop.frame;
+      const input = controls.getInput(dt) || idle;
+      traveller.update(dt, game.modal() ? idle : input);
+      const p = traveller.position;
+      const t = state.traveller;
+      t.x = p.x; t.y = p.y; t.z = p.z;
+      t.dirX = traveller.moveDir.x; t.dirZ = traveller.moveDir.z; t.speed = traveller.speed;
+      _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
+      const rl = hypot2(_right.x, _right.z) || 1;
+      state.listener.x = p.x; state.listener.z = p.z;
+      state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
+      world.update(dt, p, traveller.moveDir);
+      views.update(dt);
+      follow.update(dt, traveller);
+      daynight.update(dt);
+      if (life) life.update(dt, p, follow.camera);
+      if (animals) animals.update(dt);
+      game.update(dt);
+      lights.update(dt, traveller, follow.camera);
+      materials.update(dt);
+      if (enableDiag && loop.frame < 5) diagLog('update frame', loop.frame, 'OK');
+    } catch (e) {
+      diagError('update threw:', e);
+      throw e;
+    }
   }
 
   function render(dt) {
-    post.setFocus(follow.focusPoint);
-    post.render(dt);
-    game.atlasmap.render();
+    try {
+      post.setFocus(follow.focusPoint);
+      post.render(dt);
+      game.atlasmap.render();
+      if (enableDiag && loop.frame < 5) diagLog('render frame', loop.frame, 'OK');
+    } catch (e) {
+      diagError('render threw:', e);
+      throw e;
+    }
   }
 
   const loop = createLoop({ update, render });
+  diagLog('loop created');
 
   function resize() {
     const w = Math.max(1, window.innerWidth);
@@ -166,7 +301,10 @@ async function boot() {
   }
 
   if (animals) await animals.ready;
+  diagLog('animals ready');
+  
   resize();
+  diagLog('resize done');
   
   // Laramie: spawn at reference pin (First Interstate Bank area)
   let spawnX = 0, spawnZ = 0;
@@ -182,22 +320,43 @@ async function boot() {
   } else {
     [spawnX, spawnZ] = initialPosition();
   }
+  diagLog('spawn position:', spawnX, spawnZ);
   
   traveller.teleport(spawnX, spawnZ);
+  diagLog('traveller teleported');
+  
   controls.clearTarget();
+  diagLog('controls cleared');
+  
   update(0);
+  diagLog('update(0) done');
+  
   follow.snap(traveller);
+  diagLog('follow snapped');
+  
   _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
   const rl = hypot2(_right.x, _right.z) || 1;
   state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
+  diagLog('listener init done');
+  
   if (world.faceCamera) world.faceCamera();
+  diagLog('faceCamera done');
+  
   if (life) life.update(0, traveller.position, follow.camera);
+  diagLog('life update(0) done');
+  
   lights.update(0, traveller, follow.camera);
+  diagLog('lights update(0) done');
+  
   render(0);
+  diagLog('render(0) done — FIRST FRAME');
+  
   loop.start();
+  diagLog('loop.start() called — ANIMATION LOOP STARTED');
 }
 
 boot().catch((err) => {
+  diagError('[atlas] boot failed', err);
   console.error('[atlas] boot failed', err);
   throw err;
 });
