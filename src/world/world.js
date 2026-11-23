@@ -19,6 +19,7 @@ import { createBook, BIOME_TINT_GLSL, biomeTintUniforms, biomeIndexOf } from './
 import { biomeAt as biomeIdAt, biomeWeights, BIOMES } from '../core/biomes.js';
 import { state } from '../core/state.js';
 import { isThinned, hashStr } from './cards.js';
+import { RailwayLayer } from './railway/index.js';
 // integration: V8's Math.hypot allocates (rest-argument array) on every call; this 2-argument form is allocation-free.
 const hypot2 = (a, b) => Math.sqrt(a * a + b * b);
 
@@ -1281,6 +1282,7 @@ export function createWorld({ scene, assets, wfc, materials, quality }) {
       last.fresh = jump;
       rebase();
       book.follow(travellerPos);
+    if (api.railwayLayer) api.railwayLayer.update();
       // teleport / first frame: spawn everything at once and ink the print around the new place immediately
       stream(dt, jump ? Infinity : W.spawnBudget, false);
       if (jump) book.settle(); else book.update(dt, travellerPos);
@@ -1433,5 +1435,20 @@ export function createWorld({ scene, assets, wfc, materials, quality }) {
     },
   };
   sight.world = api;
-  return api;
+  
+    if (CONFIG.railway.useExperimentalRenderer) {
+        const railwayLayer = new RailwayLayer({
+            assets, wfc, materials,
+            bounds: { 
+                multiTrack: { xMin: -75, xMax: 4, zMin: -116, zMax: -37 }, 
+                bridge: { xMin: -27, xMax: 12, zMin: 4, zMax: 43 } 
+            }
+        });
+        batchRoot.add(railwayLayer.railsMesh);
+        batchRoot.add(railwayLayer.ballastMesh);
+        batchRoot.add(railwayLayer.sleepersMesh);
+        api.railwayLayer = railwayLayer;
+    }
+
+    return api;
 }
