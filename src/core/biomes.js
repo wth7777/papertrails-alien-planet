@@ -11,8 +11,8 @@
 //   blossom    spring green, pink blossom trees, gardens     (petals, butterflies)
 //   pinewood   dark misty conifer forest, mushrooms, marsh   (light rain / mist, fireflies at night)
 
-export const BIOMES = ['heartland', 'desert', 'snow', 'blossom', 'pinewood'];
-export const BIOME_INDEX = { heartland: 0, desert: 1, snow: 2, blossom: 3, pinewood: 4 };
+export const BIOMES = ['heartland', 'desert', 'snow', 'blossom', 'pinewood', 'alien'];
+export const BIOME_INDEX = { heartland: 0, desert: 1, snow: 2, blossom: 3, pinewood: 4, alien: 5 };
 /** Grid pitch of the Voronoi sites, in tiles. */
 export const BIOME_SITE = 11;
 
@@ -28,6 +28,8 @@ function siteBiome(seed, gx, gy) {
   if (gy === 0 && gx === -1) return 2;
   if (gx === 0 && gy === 1) return 3;
   if (gx === 0 && gy === -1) return 4;
+  if (gy === 0 && gx === 2) return 5;
+  if (gy === 0 && gx === -2) return 5;
   const r = h2(seed, gx, gy, 3);
   return r < 0.3 ? 0 : 1 + Math.min(3, Math.floor(((r - 0.3) / 0.7) * 4));
 }
