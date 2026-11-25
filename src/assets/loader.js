@@ -2,10 +2,12 @@
 //   ./models/tiles.glb      tile models with hinged paper flaps
 //   ./models/traveller.glb  the paper traveller (body/head/legs/arms/lantern, clip 'walk')
 //   ./textures/manifest.json
+//   ./textures/facade_atlas.png  facade texture atlas for building tiles
 // Never throws: anything missing falls back to the procedural PLACEHOLDER tiles / traveller below, which use
 // the same hinge convention (source = 'placeholder' | 'mixed' | 'gltf').
 // All cardstock uses ONE material, materials.paper({ color: '#ffffff' }), coloured by vertex colours (COLOR_0);
 // window panes / lantern glass use ONE emissive material.
+// Building tiles use the facade atlas texture with UV coordinates (TEXCOORD_0).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG, TILE_SIZE, PATH_WIDTH, RIVER_WIDTH, FLAP_LAYER_GAP } from '../core/config.js';
@@ -208,6 +210,10 @@ function renameClips(clips, prefix) {
  * normalise the hinge userData, set shadow flags. Returns { hinges, triangles, meshes }.
  */
 function adopt(root, prefix, mats, opts = {}) {
+  // Detect if this is a building tile (OSM ID prefix like "238528914__")
+  const modelId = prefix.replace('__', '');
+  const isBuilding = /^\d+$/.test(modelId);
+  
   const stats = { hinges: 0, triangles: 0, meshes: 0, bad: 0 };
   root.traverse((o) => {
     o.name = stripName(o.name, prefix);
@@ -223,7 +229,12 @@ function adopt(root, prefix, mats, opts = {}) {
     if (o.isMesh) {
       const glow = o.material && /glow/i.test(o.material.name || '');
       if (o.material && o.material.dispose) o.material.dispose();
-      o.material = glow ? mats.glow : mats.paper;
+      // Use building material for building tiles, paper for everything else
+      if (isBuilding && mats.building) {
+        o.material = glow ? mats.glow : mats.building;
+      } else {
+        o.material = glow ? mats.glow : mats.paper;
+      }
       const isBase = !glow && (o.name === 'base' || (o.parent && o.parent.name === 'base'));
       o.castShadow = !glow && !isBase && opts.castShadow !== false;
       o.receiveShadow = !glow;
@@ -266,7 +277,7 @@ async function fetchJSON(url) {
 
 /** Paper, page and print maps from the runtime texture manifest (tolerates absence). */
 async function loadTextures(A, anisotropy) {
-  const out = { paper: null, paperNormal: null, paperRough: null, manifest: null };
+  const out = { paper: null, paperNormal: null, paperRough: null, manifest: null, facadeAtlas: null };
   const jobs = [];
   const manifest = await fetchJSON(A.manifestUrl);
   if (manifest && typeof manifest === 'object') {
@@ -286,6 +297,17 @@ async function loadTextures(A, anisotropy) {
         }));
     }
   }
+  // Load facade atlas for building tiles
+  const atlasUrl = `${A.texturesBase}facade_atlas.png`;
+  out.facadeAtlas = await loadTexture(atlasUrl, { srgb: true, repeat: true, flipY: false, anisotropy });
+  if (out.facadeAtlas) {
+    out.facadeAtlas.wrapS = THREE.RepeatWrapping;
+    out.facadeAtlas.wrapT = THREE.RepeatWrapping;
+    out.facadeAtlas.magFilter = THREE.NearestFilter;
+    out.facadeAtlas.minFilter = THREE.LinearMipmapLinearFilter;
+  } else {
+    warn('facade atlas not found at', atlasUrl);
+  }
   await Promise.all(jobs);
   // aliases other modules look for
   if (out.paper && !out.card) out.card = out.paper;
@@ -302,21 +324,45 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
   const A = CONFIG.assets;
   const caps = renderer && renderer.capabilities;
   const anisotropy = Math.min(8, (caps && caps.getMaxAnisotropy && caps.getMaxAnisotropy()) || 4);
+
+  // Load textures FIRST so they're available for material creation
+  const noTex = () => ({ paper: null, paperNormal: null, paperRough: null, manifest: null, facadeAtlas: null });
+  const [textures, tilesGltf, alienGltf, travGltf, meta] = await Promise.all([
+    loadTextures(A, anisotropy).catch(noTex),
+    loadGLTF(A.tilesUrl),
+    loadGLTF(A.alienTilesUrl).catch(() => null),
+    loadGLTF(A.travellerUrl),
+    fetchJSON(A.metaUrl),
+  ]);
+
   const mats = {
     paper: materials.paper({ color: '#ffffff', side: THREE.DoubleSide }),
     glow: materials.paper({ color: '#ffffff', side: THREE.DoubleSide, emissive: A.glowColor, emissiveIntensity: A.glowIntensity, fibre: 'none', vary: false }),
+    building: textures.facadeAtlas
+      ? new THREE.MeshStandardMaterial({
+          map: textures.facadeAtlas,
+          alphaTest: 0.1,
+          side: THREE.DoubleSide,
+          roughness: 0.8,
+          metalness: 0.1,
+        })
+      : materials.paper({ color: '#ffffff', side: THREE.DoubleSide }),
   };
   // The tiles are drawn through a BatchedMesh, the traveller as plain meshes: separate material instances
   // (same look) so three does not re-derive the program parameters on every batch <-> mesh switch.
   const travMats = {
     paper: materials.paper({ color: '#ffffff', side: THREE.DoubleSide, variant: 'traveller' }),
     glow: materials.paper({ color: '#ffffff', side: THREE.DoubleSide, emissive: A.glowColor, emissiveIntensity: A.glowIntensity, fibre: 'none', vary: false, variant: 'traveller' }),
+    building: textures.facadeAtlas
+      ? new THREE.MeshStandardMaterial({
+          map: textures.facadeAtlas,
+          alphaTest: 0.1,
+          side: THREE.DoubleSide,
+          roughness: 0.8,
+          metalness: 0.1,
+        })
+      : materials.paper({ color: '#ffffff', side: THREE.DoubleSide, variant: 'traveller' }),
   };
-  const noTex = () => ({ paper: null, paperNormal: null, paperRough: null, manifest: null });
-
-  const [tilesGltf, travGltf, textures, meta] = await Promise.all([
-    loadGLTF(A.tilesUrl), loadGLTF(A.travellerUrl), loadTextures(A, anisotropy).catch(noTex), fetchJSON(A.metaUrl),
-  ]);
 
   const protos = new Map();
   const stats = { tiles: {}, traveller: null };
@@ -324,7 +370,14 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
   if (tilesGltf && tilesGltf.scene) {
     const byName = new Map();
     for (const c of [...tilesGltf.scene.children]) byName.set(c.name, c);
-    for (const id of MODEL_IDS) {
+    if (alienGltf && alienGltf.scene) for (const c of [...alienGltf.scene.children]) byName.set(c.name, c);
+    
+    // Load both generic tile types (from MODEL_IDS) and per-building OSM IDs (from meta.tiles)
+    const buildingIds = meta?.tiles ? Object.keys(meta.tiles).filter(k => /^\d+$/.test(k)) : [];
+    const allModelIds = [...MODEL_IDS, ...buildingIds];
+    console.log('[assets] Loading models from tiles.glb:', MODEL_IDS.length, 'generic +', buildingIds.length, 'building OSM IDs =', allModelIds.length, 'total');
+    
+    for (const id of allModelIds) {
       const node = byName.get(id);
       if (!node) continue;
       try {
@@ -386,7 +439,7 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
     },
     traveller,
     textures,
-    modelIds: [...MODEL_IDS],
+    modelIds: Array.from(protos.keys()),
     source,
     /** public/models/assets_meta.json (per-tile numbers, bridge deck profile, lantern post position) or null. */
     meta,

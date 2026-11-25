@@ -3,6 +3,13 @@
 // Contract: Must not rearrange real geography; only decorate within fixed features.
 
 import { CONFIG, TILE_SIZE } from '../core/config.js';
+
+// WFC world-cell -> (chunk, local) addressing offsets. The WFC addresses a cell as
+// chunk = (worldCell + originLocal) >> 3, local = (worldCell + originLocal) & 7, so every
+// chunked GIS layer must add the same offset before it derives a chunk key / local index.
+// Without this the whole street/railway/sidewalk grid is displaced by (-OX,-OZ) cells.
+const OX = CONFIG.wfc.originLocal[0];
+const OZ = CONFIG.wfc.originLocal[1];
 import { hash2 } from '../core/rng.js';
 import { SOCKET_CODE, socketsOf, OPTIONS, getTile } from '../world/tiles.js';
 
@@ -102,12 +109,17 @@ export const BUILDING_TILE_MAP = {
 /** Option indices for each building tile type (all rotations) */
 export const BUILDING_OPTION_INDICES = {
   house: [25, 26, 27, 28],
+  house_1: [25, 26, 27, 28],     // 1-story: same as house
+  house_2: [25, 26, 27, 28],     // 2-story: same as house (until GLTF model exists)
+  house_3: [25, 26, 27, 28],     // 3-story: same as house (until GLTF model exists)
   village: [29, 30],
   village_b: [31, 32],
   village_green: [33, 34],
   church: [85, 86, 87, 88],
   market_square: [90],
-  manor: [91, 92, 93, 94]
+  manor: [91, 92, 93, 94],
+  manor_2: [91, 92, 93, 94],     // 2-story: same as manor (until GLTF model exists)
+  manor_3: [91, 92, 93, 94]      // 3-story: same as manor (until GLTF model exists)
 };
 
 /** Classify building by area (m²) → tile type */
@@ -115,6 +127,55 @@ export function classifyBuildingByArea(areaM2) {
   if (areaM2 < 100) return 'house';
   if (areaM2 < 400) return 'village';
   if (areaM2 < 1000) return 'manor';
+  return 'manor';
+}
+
+/** Estimate building levels from area, classification, and OSM tags.
+ * Since OSM building:levels is missing for all buildings, we estimate:
+ * - Small buildings (<100 m²): typically 1 story (residential) or 1-2 (commercial)
+ * - Medium buildings (100-400 m²): typically 1-2 stories
+ * - Large buildings (400-1000 m²): typically 2-3 stories
+ * - Very large buildings (>1000 m²): typically 3+ stories
+ * Commercial/shop/amenity buildings tend to be taller for their footprint. */
+export function estimateBuildingLevels(areaM2, classification, buildingTag, amenityTag, shopTag) {
+  const isCommercial = shopTag || amenityTag === 'restaurant' || amenityTag === 'cafe' ||
+                       amenityTag === 'pub' || amenityTag === 'bar' || amenityTag === 'bank' ||
+                       amenityTag === 'office' || classification === 'COMMERCIAL';
+  const isIndustrial = classification === 'INDUSTRIAL' || buildingTag === 'warehouse' || buildingTag === 'industrial';
+  const isPublic = amenityTag === 'school' || amenityTag === 'university' || amenityTag === 'hospital' ||
+                   amenityTag === 'courthouse' || amenityTag === 'townhall' || buildingTag === 'civic';
+  
+  // Base levels by area
+  let levels;
+  if (areaM2 < 100) levels = isCommercial ? 2 : 1;
+  else if (areaM2 < 400) levels = isCommercial ? 2 : (isPublic ? 2 : 1);
+  else if (areaM2 < 1000) levels = isCommercial ? 3 : (isPublic ? 3 : 2);
+  else levels = isCommercial ? 4 : (isPublic ? 3 : 3);
+  
+  // Clamp to reasonable range
+  return Math.min(Math.max(levels, 1), 5);
+}
+
+/** Classify building by area AND estimated levels → height-specific tile type */
+export function classifyBuildingByAreaAndHeight(areaM2, levels) {
+  if (areaM2 < 100) {
+    if (levels >= 3) return 'house_3';
+    if (levels >= 2) return 'house_2';
+    return 'house_1';
+  }
+  if (areaM2 < 400) {
+    // Village types stay as-is for medium buildings (they're N-S street tiles)
+    if (levels >= 3) return 'village'; // Could add village_3 later
+    if (levels >= 2) return 'village';
+    return 'village';
+  }
+  if (areaM2 < 1000) {
+    if (levels >= 3) return 'manor_3';
+    if (levels >= 2) return 'manor_2';
+    return 'manor';
+  }
+  if (levels >= 3) return 'manor_3';
+  if (levels >= 2) return 'manor_2';
   return 'manor';
 }
 
@@ -148,9 +209,9 @@ function calcOrientation(coords) {
       bestAngle = Math.atan2(dx, dy) * 180 / Math.PI; // atan2(easting diff, northing diff)
     }
   }
-  // Normalize to 0-360, then snap to nearest 90°
-  const normalized = (bestAngle + 360) % 360;
-  return Math.round(normalized / 90) * 90;
+  // Normalize to 0-360 (exact angle, no 90° snapping)
+  // WFC supports all rotations for socketed tiles, so we preserve exact orientation
+  return (bestAngle + 360) % 360;
 }
 
 export const HIGHWAY_TO_ROAD = {
@@ -168,17 +229,16 @@ export const HIGHWAY_TO_ROAD = {
 
 export const LANDMARK_TILE_MAP = {
   // Verified landmarks (OSM tags match)
-  'U.P. Railroad Footbridge & Depot': { tile: 'depot', custom: true, weight: 1000 },
-  'City Hall & Fire Station': { tile: 'manor', custom: true, weight: 1000 },
-  'Masonic Temple': { tile: 'church', custom: true, weight: 1000 },
-  "St. Matthew's Episcopal Cathedral": { tile: 'church', custom: true, weight: 1000 },
-  'First Interstate Bank': { tile: 'manor', custom: true, weight: 1000 },
-  'Albany County Courthouse': { tile: 'manor', custom: true, weight: 1000 },
-  'Wyo Theatre': { tile: 'market_square', custom: true, weight: 1000 },
-  'Laramie Fire Station': { tile: 'watchtower', custom: true, weight: 1000 },
-  'Durlacher House': { tile: 'house', custom: true, weight: 1000 },
-  'Blair House': { tile: 'house', custom: true, weight: 1000 },
-  'Lincoln Community Center': { tile: 'market_square', custom: true, weight: 1000 },
+  'U.P. Railroad Footbridge & Depot': { tile: 'depot_custom', custom: true, weight: 1000 },
+  'City Hall & Fire Station': { tile: 'city_hall', custom: true, weight: 1000 },
+  'Masonic Temple': { tile: 'masonic_temple', custom: true, weight: 1000 },
+  "St. Matthew's Episcopal Cathedral": { tile: 'st_matthews_cathedral', custom: true, weight: 1000 },
+  'First Interstate Bank': { tile: 'first_interstate_bank', custom: true, weight: 1000 },
+  'Albany County Courthouse': { tile: 'albany_courthouse', custom: true, weight: 1000 },
+  'Wyo Theatre': { tile: 'wyo_theatre', custom: true, weight: 1000 },
+  'Laramie Fire Station': { tile: 'laramie_fire_station', custom: true, weight: 1000 },
+  'Durlacher House': { tile: 'durlacher_house', custom: true, weight: 1000 },
+  'Blair House': { tile: 'blair_house', custom: true, weight: 1000 },
   
   // Candidate landmarks (proximity only)
   'Wagner Building': { tile: 'village', candidate: true },
@@ -377,6 +437,7 @@ function directionsToTrunkMask(directions) {
  * Footway/path crossings are excluded from road intersection constraints.
  */
 import { OSM_HIGHWAY_LOOKUP } from '../../public/gis/osm_highway_lookup.mjs';
+import { buildRoadNetwork, computeAllFrontages, buildPlacementContext } from './frontage.js';
 
 export function streetsToConstraints(streetsGeoJSON, intersectionsGeoJSON, seed) {
   const constraints = new Map();
@@ -499,9 +560,9 @@ export function streetsToConstraints(streetsGeoJSON, intersectionsGeoJSON, seed)
   for (const [key, data] of allStreetCells.entries()) {
     const cx = data.cx;
     const cz = data.cz;
-    const chunkKey = `${cx >> 3},${cz >> 3}`;
-    const localX = cx & 7;
-    const localZ = cz & 7;
+    const chunkKey = `${(cx + OX) >> 3},${(cz + OZ) >> 3}`;
+    const localX = (cx + OX) & 7;
+    const localZ = (cz + OZ) & 7;
     const cellIdx = localZ * 8 + localX;
     
     if (!constraints.has(chunkKey)) {
@@ -535,6 +596,20 @@ export function streetsToConstraints(streetsGeoJSON, intersectionsGeoJSON, seed)
   return constraints;
 }
 
+
+/**
+ * Half-width (metres) of a street's road corridor, from the GIS width_m when the
+ * source provides one, otherwise from the highway class.
+ */
+function roadCorridorHalfWidth(props) {
+  const w = props?.width_m;
+  if (w !== null && w !== undefined && Number.isFinite(w) && w > 0) return w / 2;
+  const byHighway = {
+    primary: 6, secondary: 5, tertiary: 4, residential: 3.5, service: 2.5,
+    footway: 1, path: 1, steps: 0.75, pedestrian: 1.5, unclassified: 3,
+  };
+  return byHighway[props?.highway] ?? 3;
+}
 
 export function buildBuildingRegistry(buildingsGeoJSON) {
   const registry = [];
@@ -585,12 +660,15 @@ export function buildBuildingRegistry(buildingsGeoJSON) {
     const area = calcArea(coords);
     const orientation = calcOrientation(coords);
 
+    // Estimate building levels from area and OSM tags
+    const levels = estimateBuildingLevels(area, classification, buildingTag, amenityTag, shopTag);
+
     // Convert to tile coordinates
     const cell = GEO.utmToCell(centroidE, centroidN);
     const cellKey = `${cell.cx},${cell.cz}`;
 
-    // Classify by area
-    const tileType = classifyBuildingByArea(area);
+    // Classify by area AND estimated levels (height-aware)
+    const tileType = classifyBuildingByAreaAndHeight(area, levels);
 
     // Get option indices for this tile type (all rotations allowed)
     const optionIndices = BUILDING_OPTION_INDICES[tileType] || BUILDING_OPTION_INDICES.house;
@@ -602,6 +680,7 @@ export function buildBuildingRegistry(buildingsGeoJSON) {
       building: props.building || '',
       amenity: props.amenity || '',
       area: area,
+      levels: levels,
       centroid: { e: centroidE, n: centroidN },
       centroidTile: { cx: cell.cx, cz: cell.cz },
       tileType: tileType,
@@ -718,14 +797,14 @@ export function crossingsToConstraints(crossingsGeoJSON) {
     const [e, n] = feature.geometry.coordinates;
 
     const cell = GEO.utmToCell(e, n);
-    const chunkKey = `${cell.cx >> 3},${cell.cz >> 3}`;
+    const chunkKey = `${(cell.cx + OX) >> 3},${(cell.cz + OZ) >> 3}`;
 
     if (!constraints.has(chunkKey)) {
       constraints.set(chunkKey, { crossingMask: new Uint8Array(64) });
     }
     const c = constraints.get(chunkKey);
-    const localX = cell.cx & 7;
-    const localZ = cell.cz & 7;
+    const localX = (cell.cx + OX) & 7;
+    const localZ = (cell.cz + OZ) & 7;
     const cellIdx = localZ * 8 + localX;
 
     // Mark this cell as having a crossing (all four sides)
@@ -769,14 +848,14 @@ export function railwaysToConstraints(railwaysGeoJSON) {
       for (let s = 0; s <= steps; s++) {
         const cx = c1.cx + Math.round((c2.cx - c1.cx) * s / (steps || 1));
         const cz = c1.cz + Math.round((c2.cz - c1.cz) * s / (steps || 1));
-        const chunkKey = `${cx >> 3},${cz >> 3}`;
+        const chunkKey = `${(cx + OX) >> 3},${(cz + OZ) >> 3}`;
 
         if (!constraints.has(chunkKey)) {
           constraints.set(chunkKey, { railMask: new Uint8Array(64), railTypeMask: new Uint8Array(64), railDirMask: new Uint8Array(64) });
         }
         const c = constraints.get(chunkKey);
-        const localX = cx & 7;
-        const localZ = cz & 7;
+        const localX = (cx + OX) & 7;
+        const localZ = (cz + OZ) & 7;
         const cellIdx = localZ * 8 + localX;
 
         // railMask: all railway cells (for reference)
@@ -914,14 +993,14 @@ export function railwaysToConstraints(railwaysGeoJSON) {
           for (let s = 0; s <= steps; s++) {
             const cx = c1.cx + Math.round(dx * s / steps);
             const cz = c1.cz + Math.round(dz * s / steps);
-            const chunkKey = `${cx >> 3},${cz >> 3}`;
+            const chunkKey = `${(cx + OX) >> 3},${(cz + OZ) >> 3}`;
 
             if (!constraints.has(chunkKey)) {
               constraints.set(chunkKey, { sidewalkMask: new Uint8Array(64) });
             }
             const c = constraints.get(chunkKey);
-            const localX = cx & 7;
-            const localZ = cz & 7;
+            const localX = (cx + OX) & 7;
+            const localZ = (cz + OZ) & 7;
             const cellIdx = localZ * 8 + localX;
 
             // Mark sidewalk cell (bidirectional along path)
@@ -971,15 +1050,16 @@ export function demToHeightField(demSamplesGeoJSON) {
  * Uses fetch() to load from the public/gis folder served by Vite.
  */
 export async function buildLaramieConstraints() {
+  console.log('[LARAMIE DEBUG] buildLaramieConstraints START');
   const basePath = './gis';
-  const enableDiag = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('diag') === '1';
+  const enableDiag = true; // Force ON for debugging
   
   function diagLog(...args) {
-    if (enableDiag) console.log('[DIAG]', ...args);
+    console.log('[DIAG]', ...args);
   }
   
   function diagError(...args) {
-    if (enableDiag) console.error('[DIAG]', ...args);
+    console.error('[DIAG]', ...args);
   }
   
   const load = async (filename) => {
@@ -988,6 +1068,7 @@ export async function buildLaramieConstraints() {
     const timeout = enableDiag ? setTimeout(() => controller.abort(), 15000) : null;
     try {
       const baseUrl = new URL(basePath + '/', typeof window !== 'undefined' ? window.location.href : 'http://localhost').href;
+      diagLog('GIS fetch URL:', `${baseUrl}${filename}`);
       const response = await fetch(`${baseUrl}${filename}`, enableDiag ? { signal: controller.signal } : {});
       if (timeout) clearTimeout(timeout);
       diagLog('GIS fetch response:', filename, response.status, response.headers.get('content-type'));
@@ -997,8 +1078,8 @@ export async function buildLaramieConstraints() {
       return json;
     } catch (err) {
       if (timeout) clearTimeout(timeout);
+      diagError('GIS fetch FAILED:', filename, err);
       if (enableDiag && err.name === 'AbortError') throw new Error(`GIS fetch timeout (15s): ${filename}`);
-      diagError('GIS fetch failed:', filename, err);
       throw err;
     }
   };
@@ -1036,17 +1117,10 @@ export async function buildLaramieConstraints() {
         buildBuildingRegistry(buildings);
       diagLog('[Laramie] Building registry done:', { total: buildingRegistry.length, excluded: buildingExcluded, collisions: buildingCollisions.length });
 
-      if (buildingCollisions.length > 0) {
-        console.warn('[Laramie] Building tile collisions:', buildingCollisions.length);
-        for (const c of buildingCollisions) {
-          console.warn(`  Cell (${c.tile[0]}, ${c.tile[1]}):`, c.buildings.map(b => `${b.name || 'unnamed'} (OSM ${b.osmId}, ${b.area.toFixed(1)}m²)`).join(', '));
-        }
-      }
-
       diagLog('[Laramie] streetsToConstraints...');
       const streetsConstraints = streetsToConstraints(streets, intersections);
       diagLog('[Laramie] streetsToConstraints done:', { chunks: streetsConstraints.size });
-      
+
       diagLog('[Laramie] crossingsToConstraints...');
       const crossingsConstraints = crossingsToConstraints(crossings);
       diagLog('[Laramie] crossingsToConstraints done:', { chunks: crossingsConstraints.size });
@@ -1066,6 +1140,60 @@ export async function buildLaramieConstraints() {
       diagLog('[Laramie] railwaysToConstraints...');
       const railwaysConstraints = railwaysToConstraints(railways);
       diagLog('[Laramie] railwaysToConstraints done:', { chunks: railwaysConstraints.size });
+
+      // ---- Phase 1: GIS-aware building placement -------------------------------
+      // Compute each building's street frontage from its real footprint and the real
+      // GIS road corridors. The footprint and every registry field are preserved; only
+      // the placement cell is derived from where the building actually meets a street.
+      //
+      // The placement context is built from the solver's OWN GIS layers, so the
+      // frontage check sees exactly the cells the solver sees — no second rasteriser
+      // that could drift.
+      const placementCtx = buildPlacementContext(streetsConstraints, railwaysConstraints, crossingsConstraints);
+      const roadSegments = buildRoadNetwork(streets, roadCorridorHalfWidth);
+      // The solver options for each building tile type, so the frontage step can pick
+      // the rotation (and, where the registry's own type cannot express the frontage,
+      // the tile ARTS) that legally connect to the street.
+      // The path tiles a street cell may use to present a PATH arm toward a building.
+      // Every option that can carry a path socket is a candidate; the frontage step
+      // checks each against the street cell's own socket demands.
+      const pathTileOptions = OPTIONS.filter((o) => o.sig.includes(1));
+      const optionsForType = (tileType) => {
+        if (tileType === '__pathTiles') return pathTileOptions;
+        const indices = BUILDING_OPTION_INDICES[tileType];
+        if (!indices || !indices.length) return null;
+        return indices.map((i) => OPTIONS[i]).filter(Boolean);
+      };
+      // The road cells that need a PATH arm toward a building (a spur off the street).
+      const spurArms = new Map();
+      const frontageResults = computeAllFrontages(buildingRegistry, placementCtx, roadSegments, optionsForType, spurArms);
+      diagLog('[Laramie] Spur arms:', { count: spurArms.size });
+      const frontageByOsm = new Map();
+      let frontageOk = 0, frontageNone = 0;
+      for (const { entry, frontage } of frontageResults) {
+        // Attach to the registry entry WITHOUT touching the footprint or metadata.
+        // The registry entry keeps its own `tileType` classification untouched; the
+        // frontage record additionally carries the tile ARTS that can legally render
+        // the building at this frontage.
+        entry.frontage = frontage.status === 'ok'
+          ? { status: 'ok', cell: frontage.cell, dir: frontage.dir, roadCell: frontage.roadCell,
+              clearance: frontage.clearance, optionIndex: frontage.optionIndex,
+              placementTile: frontage.placementTile, placementTileIsFallback: frontage.placementTileIsFallback,
+              connection: frontage.connection }
+          : { status: frontage.status, cell: null, dir: -1, roadCell: null, clearance: frontage.clearance,
+              optionIndex: null, placementTile: null, placementTileIsFallback: false };
+        frontageByOsm.set(String(entry.osmId), entry.frontage);
+        if (frontage.status === 'ok') frontageOk++; else frontageNone++;
+      }
+      diagLog('[Laramie] Building frontage done:', { withFrontage: frontageOk, withoutFrontage: frontageNone });
+      if (frontageNone > 0) {
+        console.warn(`[Laramie] ${frontageNone} registry building(s) have no placeable street frontage and will be reported, not force-placed:`);
+        for (const { entry, frontage } of frontageResults) {
+          if (frontage.status === 'ok') continue;
+          console.warn(`  OSM ${entry.osmId}${entry.name ? ` "${entry.name}"` : ''} (${entry.tileType}, ${Math.round(entry.area)}m2): ${frontage.status}` +
+            (frontage.clearance !== null && frontage.clearance !== undefined ? `, ${frontage.clearance.toFixed(1)}m from the nearest road corridor` : ''));
+        }
+      }
       
       diagLog('[Laramie] parksToConstraints...');
       const parksConstraints = parksToConstraints(parks);
@@ -1082,6 +1210,8 @@ export async function buildLaramieConstraints() {
                 buildings: buildingsConstraints, // legacy Map for backward compat
                 buildingRegistry: buildingRegistry, // NEW: authoritative registry
                 buildingCollisions: buildingCollisions,
+                buildingFrontages: frontageByOsm, // NEW: Phase 1 — GIS-aware placement cells
+                spurArms, // NEW: Phase 1A — road cells needing a PATH arm toward a building
                 landmarks: landmarksConstraints,
                 railways: railwaysConstraints,
                 parks: parksConstraints,
@@ -1103,12 +1233,12 @@ export async function buildLaramieConstraints() {
 
 export function applyConstraintsToChunk(wfc, cx, cz, constraints) {
   const chunkKey = `${cx},${cz}`;
-  const OX = CONFIG.wfc.originLocal[0];
-  const OZ = CONFIG.wfc.originLocal[1];
   const N = 8, NN = 64;
 
   if (!wfc._geoState) wfc._geoState = new Map();
   if (wfc._geoState.has(chunkKey)) return;
+
+  console.log('[Laramie] Applying constraints to chunk', chunkKey);
 
   const state = {
     trunkMask: new Uint8Array(NN),
@@ -1126,6 +1256,18 @@ export function applyConstraintsToChunk(wfc, cx, cz, constraints) {
   // 1. Street constraints
   const streetC = constraints.streets?.get(chunkKey);
   if (streetC) state.trunkMask.set(streetC.trunkMask);
+
+  // 1a. Spur arms: road cells that must present a PATH socket toward a registry
+  // building's frontage (a driveway off the street). The mask marks, per cell, the
+  // direction of the arm (bit N=1, E=2, S=4, W=8).
+  state.spurArmMask = new Uint8Array(NN);
+  for (const [cellKey, arm] of constraints.spurArms?.entries() ?? []) {
+    const [gx, gz] = cellKey.split(',').map(Number);
+    const lx = (gx + OX) & 7;
+    const lz = (gz + OZ) & 7;
+    if ((gx + OX) >> 3 !== cx || (gz + OZ) >> 3 !== cz) continue;
+    state.spurArmMask[lz * 8 + lx] = [1, 2, 4, 8][arm.dir];
+  }
 
   // 1b. Intersection forced tiles from streets
   if (streetC?.forcedTiles) {
@@ -1163,10 +1305,29 @@ export function applyConstraintsToChunk(wfc, cx, cz, constraints) {
   }
 
   // 5. Building constraints (by cell) — from building registry (one entry per building)
+  //
+  // Phase 1: placement is GIS-aware. The building is placed at its FRONTAGE cell —
+  // the cell of its real footprint that meets a real GIS street — not at its centroid.
+  // The footprint, the centroid, and every other registry field are preserved
+  // untouched; only the anchor cell for the tile changes.
+  // FALLBACK: Buildings without valid frontage fall back to centroid placement
+  // (with warning) so downtown density is preserved.
   const registry = constraints.buildingRegistry || [];
   for (const entry of registry) {
-    const gx = entry.centroidTile.cx;
-    const gz = entry.centroidTile.cz;
+    const frontage = entry.frontage;
+    let gx, gz;
+    let isFallback = false;
+    
+    if (!frontage || frontage.status !== 'ok' || !frontage.cell) {
+      // FALLBACK: Use centroid tile for buildings without valid frontage
+      isFallback = true;
+      gx = entry.centroidTile.cx;
+      gz = entry.centroidTile.cz;
+      console.warn(`[Laramie] Building '${entry.name || entry.osmId}' (${entry.tileType}, ${Math.round(entry.area)}m²) has no valid frontage (status: ${frontage?.status ?? 'none'}). Falling back to centroid placement at (${gx},${gz}).`);
+    } else {
+      gx = frontage.cell.cx;
+      gz = frontage.cell.cz;
+    }
 
     // Check if this building falls in the current chunk
     const localX = gx - (cx * N - OX);
@@ -1184,14 +1345,26 @@ export function applyConstraintsToChunk(wfc, cx, cz, constraints) {
         // Skip building constraint to avoid hard constraint contradiction
         console.warn(`[Laramie] Building '${entry.name || entry.osmId}' at (${gx},${gz}) conflicts with verified landmark '${landmarkC.name}' (${landmarkC.tileId} vs ${entry.tileType}). Landmark constraint takes precedence.`);
       } else {
-        // No conflict, or landmark is candidate/unverified, or same tile type: add building constraint
+        // No conflict, or landmark is candidate/unverified, or same tile type: add building constraint.
+        // `isRegistryBuilding` marks it for the solver's GIS-aware weight rule (Phase 1).
+        // The forced tile uses the option the frontage step chose: the rotation whose
+        // path socket faces the street the building fronts. `optionIndices` is narrowed
+        // to that single option so the solver cannot rotate the building away from
+        // its street.
+        const placementOption = (!isFallback && frontage && frontage.optionIndex !== null && frontage.optionIndex !== undefined)
+          ? [frontage.optionIndex]
+          : entry.optionIndices;
         state.forcedTiles.set(cellIdx, {
-          tileId: entry.tileType,
+          tileId: (!isFallback && frontage?.placementTile) || entry.tileType,
           weight: 1000,
           osmId: entry.osmId,
           name: entry.name,
-          optionIndices: entry.optionIndices,
-          area: entry.area
+          optionIndices: placementOption,
+          area: entry.area,
+          isRegistryBuilding: true,
+          frontageDir: frontage?.dir ?? -1,
+          registryTileType: entry.tileType,
+          isFallbackPlacement: isFallback
         });
       }
     }

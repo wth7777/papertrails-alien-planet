@@ -1,0 +1,234 @@
+{
+  "landmarks": [
+    {
+      "name": "U.P. Railroad Footbridge & Depot",
+      "tile_id": "depot_custom",
+      "osm_id": null,
+      "current_tile": "depot",
+      "references": [
+        "https://en.wikipedia.org/wiki/Union_Pacific_Railroad_Depot_(Laramie,_Wyoming)",
+        "https://www.historicwyoming.org/properties/union-pacific-depot/",
+        "https://www.flickr.com/photos/jeff_gunderson/albums/72157600000000000"
+      ],
+      "key_features": [
+        "Single-story wood-frame depot building",
+        "Gable roof with wide overhanging eaves",
+        "Covered platform with decorative brackets",
+        "Bay window on track side",
+        "Footbridge spanning tracks (separate structure)",
+        "Board-and-batten siding",
+        "Double-hung windows with wood trim"
+      ],
+      "style": "Railroad vernacular, Stick/Eastlake details",
+      "height_stories": 1,
+      "special_elements": ["footbridge", "platform_canopy", "bay_window"]
+    },
+    {
+      "name": "City Hall & Fire Station",
+      "tile_id": "city_hall",
+      "osm_id": null,
+      "current_tile": "manor",
+      "references": [
+        "https://en.wikipedia.org/wiki/Laramie,_Wyoming#Government",
+        "https://www.laramie wy.gov/city-hall",
+        "https://www.flickr.com/photos/wyoming_historic/albums/72157600000000000"
+      ],
+      "key_features": [
+        "Two-story brick civic building",
+        "Clock tower or cupola",
+        "Arched fire engine garage doors (3 bays)",
+        "Classical symmetry with central entrance",
+        "Stone belt courses and window lintels",
+        "Corbeled brick cornice",
+        "Flat roof with parapet"
+      ],
+      "style": "Beaux-Arts / Classical Revival",
+      "height_stories": 2,
+      "special_elements": ["clock_tower", "garage_doors", "arched_windows"]
+    },
+    {
+      "name": "Masonic Temple",
+      "tile_id": "masonic_temple",
+      "osm_id": null,
+      "current_tile": "church",
+      "references": [
+        "https://en.wikipedia.org/wiki/Masonic_Temple_(Laramie,_Wyoming)",
+        "https://www.nationalregister.gov/nrhp/",
+        "https://wyohistory.org/encyclopedia/masonic-temple-laramie"
+      ],
+      "key_features": [
+        "Three-story brick building",
+        "Classical temple front with 4 columns",
+        "Pediment with Masonic compass/square symbol",
+        "Round-arched windows on upper floors",
+        "Rusticated stone base",
+        "Decorative cornice with dentils",
+        "Flat roof with balustrade"
+      ],
+      "style": "Neoclassical / Greek Revival",
+      "height_stories": 3,
+      "special_elements": ["portico", "masonic_symbol", "round_arch_windows"]
+    },
+    {
+      "name": "St. Matthew's Episcopal Cathedral",
+      "tile_id": "st_matthews_cathedral",
+      "osm_id": null,
+      "current_tile": "church",
+      "references": [
+        "https://en.wikipedia.org/wiki/St._Matthew%27s_Cathedral_(Laramie,_Wyoming)",
+        "https://stmatthews cathedral.org",
+        "https://www.flickr.com/photos/episcopal_wyoming/albums/72157600000000000"
+      ],
+      "key_features": [
+        "Gothic Revival stone cathedral",
+        "Square bell tower with spire",
+        "Lancet windows with stained glass",
+        "Buttressed nave walls",
+        "Gabled roof with cross finials",
+        "Pointed arch entrance portal",
+        "Cloister or side aisle"
+      ],
+      "style": "Gothic Revival",
+      "height_stories": 2,
+      "special_elements": ["bell_tower_spire", "stained_glass", "buttresses", "lancet_windows"]
+    },
+    {
+      "name": "First Interstate Bank",
+      "tile_id": "first_interstate_bank",
+      "osm_id": null,
+      "current_tile": "manor",
+      "references": [
+        "https://www.firstinterstatebank.com/locations/wy/laramie",
+        "https://wyohistory.org/encyclopedia/first-interstate-bank-building",
+        "https://www.flickr.com/photos/laramie_bank/albums/72157600000000000"
+      ],
+      "key_features": [
+        "Two-story commercial bank building",
+        "Classical facade with engaged columns",
+        "Large round-arched windows",
+        "Heavy cornice with modillions",
+        "Corner entrance with pediment",
+        "Rusticated first floor, smooth upper",
+        "Flat roof with decorative parapet"
+      ],
+      "style": "Neoclassical / Commercial Classical",
+      "height_stories": 2,
+      "special_elements": ["columns", "round_arch_windows", "corner_entrance"]
+    },
+    {
+      "name": "Albany County Courthouse",
+      "tile_id": "albany_courthouse",
+      "osm_id": null,
+      "current_tile": "manor",
+      "references": [
+        "https://en.wikipedia.org/wiki/Albany_County_Courthouse_(Wyoming)",
+        "https://www.albanycountywy.gov/courthouse",
+        "https://www.nps.gov/nrhp/"
+      ],
+      "key_features": [
+        "Three-story stone courthouse",
+        "Central dome with clock faces",
+        "Portico with Corinthian columns",
+        "Symmetrical wings with pedimented windows",
+        "Rusticated ground floor",
+        "Balustraded roof line",
+        "Grand staircase entrance"
+      ],
+      "style": "Beaux-Arts / Renaissance Revival",
+      "height_stories": 3,
+      "special_elements": ["dome", "portico", "grand_staircase", "clock_faces"]
+    },
+    {
+      "name": "Wyo Theatre",
+      "tile_id": "wyo_theatre",
+      "osm_id": null,
+      "current_tile": "market_square",
+      "references": [
+        "https://en.wikipedia.org/wiki/Wyo_Theater",
+        "https://wyotheatre.com/history",
+        "https://www.cinematour.com/theatres/usa/wyoming/laramie.htm"
+      ],
+      "key_features": [
+        "Two-story brick theatre",
+        "Vertical blade sign 'WYO'",
+        "Marquee with canopy over sidewalk",
+        "Arched entrance with ticket booth",
+        "Decorative brick patterning",
+        "Stepped parapet with coping",
+        "Side alley with fire exit"
+      ],
+      "style": "Art Deco / Commercial",
+      "height_stories": 2,
+      "special_elements": ["blade_sign", "marquee", "ticket_booth", "arched_entrance"]
+    },
+    {
+      "name": "Laramie Fire Station",
+      "tile_id": "laramie_fire_station",
+      "osm_id": null,
+      "current_tile": "watchtower",
+      "references": [
+        "https://www.laramie wy.gov/fire",
+        "https://wyohistory.org/encyclopedia/laramie-fire-department",
+        "https://www.flickr.com/photos/laramie_fire/albums/72157600000000000"
+      ],
+      "key_features": [
+        "Two-story brick fire station",
+        "Three large arched garage doors",
+        "Hose drying tower (4-5 stories)",
+        "Arched windows with keystones",
+        "Polished stone lintels/sills",
+        "Corbelled brick cornice",
+        "Pole hole at rear"
+      ],
+      "style": "Romanesque Revival / Firehouse",
+      "height_stories": 2,
+      "special_elements": ["garage_doors", "hose_tower", "arched_garage"]
+    },
+    {
+      "name": "Durlacher House",
+      "tile_id": "durlacher_house",
+      "osm_id": null,
+      "current_tile": "house",
+      "references": [
+        "https://en.wikipedia.org/wiki/Durlacher_House",
+        "https://www.nps.gov/nrhp/",
+        "https://wyohistory.org/encyclopedia/durlacher-house"
+      ],
+      "key_features": [
+        "Two-story Victorian house",
+        "Wrap-around porch with turned posts",
+        "Bay window on front facade",
+        "Gingerbread trim on gables",
+        "Patterned wood shingles in gables",
+        "Tall double-hung windows",
+        "Brick chimneys with corbelled caps"
+      ],
+      "style": "Queen Anne / Victorian",
+      "height_stories": 2,
+      "special_elements": ["wrap_porch", "bay_window", "gingerbread", "patterned_shingles"]
+    },
+    {
+      "name": "Blair House",
+      "tile_id": "blair_house",
+      "osm_id": null,
+      "current_tile": "house",
+      "references": [
+        "https://www.nps.gov/nrhp/",
+        "https://wyohistory.org/encyclopedia/blair-house",
+        "https://www.flickr.com/photos/blair_house/albums/72157600000000000"
+      ],
+      "key_features": [
+        "Two-story brick historic house",
+        "Full-width front porch with columns",
+        "Two-story bay window",
+        "Hipped roof with dormers",
+        "Stone lintels and sills",
+        "Dentilled cornice",
+        "Side entrance with portico"
+      ],
+      "style": "Colonial Revival / Foursquare",
+      "height_stories": 2,
+      "special_elements": ["front_porch", "bay_window", "dormers", "hipped_roof"]
+    }
+  ]
+}

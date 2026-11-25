@@ -2,6 +2,9 @@
 export const assets = {
   tilesUrl: './models/tiles.glb',
   travellerUrl: './models/traveller.glb',
+  /** Alien asset family tiles (Phase 6). Loaded alongside tiles.glb so alien models
+   *  register in the MODELS prototype registry. */
+  alienTilesUrl: './models/alien_tiles.glb',
   /** Per-tile numbers written by the Blender build (flaps, triangles, layers, bridge deck profile). Optional. */
   metaUrl: './models/assets_meta.json',
   /** Texture manifest (key -> { file, colorSpace, repeat, wrap }). Tolerated if absent. */

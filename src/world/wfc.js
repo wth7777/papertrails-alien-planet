@@ -48,7 +48,8 @@ const MASK_LO = new Int32Array(20); // [dir*5 + socket] -> options having that s
 const MASK_HI = new Int32Array(20);
 const MASK_EX = new Int32Array(20); // biome pass: third word (options 64..95)
 const MASK_EX2 = new Int32Array(20); // biome pass: fourth word (options 96..127)
-if (NO > 128) throw new Error('wfc: more than 128 solver options (' + NO + '); widen the domain bitmask');
+const MASK_EX3 = new Int32Array(20); // biome pass: fifth word (options 128..159)
+if (NO > 256) throw new Error('wfc: more than 256 solver options (' + NO + '); widen the domain bitmask');
 const PATH_BITS = new Uint8Array(NO); // path sockets of an option as a 4-bit mask
 for (let o = 0; o < NO; o++) {
   OPT_T[o] = OPTIONS[o].t;
@@ -58,7 +59,8 @@ for (let o = 0; o < NO; o++) {
     if (o < 32) MASK_LO[d * 5 + s] |= 1 << o;
     else if (o < 64) MASK_HI[d * 5 + s] |= 1 << (o - 32);
     else if (o < 96) MASK_EX[d * 5 + s] |= 1 << (o - 64);
-    else MASK_EX2[d * 5 + s] |= 1 << (o - 96);
+    else if (o < 128) MASK_EX2[d * 5 + s] |= 1 << (o - 96);
+    else MASK_EX3[d * 5 + s] |= 1 << (o - 128);
     if (s === P) PATH_BITS[o] |= BIT[d];
   }
 }
@@ -125,6 +127,7 @@ const domLo = new Int32Array(NN);
 const domHi = new Int32Array(NN);
 const domEx = new Int32Array(NN);
 const domEx2 = new Int32Array(NN);
+const domEx3 = new Int32Array(NN);
 const res = new Int8Array(NN);
 const ent = new Float64Array(NN);
 const entOk = new Uint8Array(NN);
@@ -136,6 +139,7 @@ const stLo = new Int32Array(MAX_DEPTH * NN);
 const stHi = new Int32Array(MAX_DEPTH * NN);
 const stEx = new Int32Array(MAX_DEPTH * NN);
 const stEx2 = new Int32Array(MAX_DEPTH * NN);
+const stEx3 = new Int32Array(MAX_DEPTH * NN);
 const stRes = new Int8Array(MAX_DEPTH * NN);
 const stCell = new Int16Array(MAX_DEPTH);
 const stOpt = new Int16Array(MAX_DEPTH);
@@ -395,6 +399,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
   let geoLandmarks = null;
   let geoParkBoosts = null;
   let geoSidewalkMask = null;
+  let geoSpurArmMask = null;
 
   function fillCost(rng, amp, ringPenalty) {
     for (let i = 0; i < NN; i++) {
@@ -447,11 +452,20 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
     })();
 
     hasGeoConstraints = geoState !== null;
+    if (hasGeoConstraints) {
+      console.log('[Laramie WFC] Chunk', cx, cz, 'has geo constraints:', {
+        hasTrunkMask: !!geoTrunkMask,
+        hasForcedTiles: !!geoForcedTiles && geoForcedTiles.size,
+        hasLandmarks: !!geoLandmarks && geoLandmarks.size,
+        hasParks: !!geoParkBoosts && geoParkBoosts.size,
+      });
+    }
     geoTrunkMask = null;
     geoRailMask = null;
     geoForcedTiles = null;
     geoLandmarks = null;
     geoParkBoosts = null;
+    geoSpurArmMask = null;
 
     if (hasGeoConstraints) {
       geoTrunkMask = geoState.trunkMask;
@@ -462,6 +476,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       geoLandmarks = geoState.landmarkTiles;
       geoParkBoosts = geoState.parkBoosts;
       geoSidewalkMask = geoState.sidewalkMask;
+      geoSpurArmMask = geoState.spurArmMask;
 
       // Pre-populate trunkMask from GIS streets (roads)
       if (geoTrunkMask) {
@@ -492,9 +507,11 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
         applyPath(mask);
       };
       set(ORIGIN_RIVER, rivMask);
-      set(ORIGIN_ROAD, trunkMask);
-      for (const r of rivers) rivMask[r.cell] |= BIT[r.out];
-      for (const r of roads) trunkMask[r.cell] |= BIT[r.out];
+      if (!hasGeoConstraints) {
+        set(ORIGIN_ROAD, trunkMask);
+        for (const r of rivers) rivMask[r.cell] |= BIT[r.out];
+        for (const r of roads) trunkMask[r.cell] |= BIT[r.out];
+      }
     } else {
       // ============================================================
       // LARAMIE: Skip procedural river routing when geographic constraints exist
@@ -675,7 +692,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       } // end if (!hasGeoConstraints)
     }
     // ---- a river with a road nearby gets a bridge: a short lane over the water to a cottage on the far bank
-    if (!isOrigin && rivers.length >= 2 && roads.length) {
+    if (!hasGeoConstraints && !isOrigin && rivers.length >= 2 && roads.length) {
       let bridged = false;
       for (let i = 0; i < NN; i++) if (rivMask[i] && trunkMask[i]) bridged = true;
       for (let tries = 0; tries < 10 && !bridged; tries++) {
@@ -876,6 +893,17 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
           if (a === 0 && b === 1) f = f1; // a lane leaving the trunk road
           else if (a >= 1 && a <= 2 && b === a + 1) f = cfg.laneOn; // ... and running on, away from it
           // lateral edges stay banned: with the "one socket must point home" rule below, every lane hangs on the trunk
+          //
+          // Phase 1A (spur correction): a GIS street cell that fronts a registry
+          // building must be able to present a PATH arm toward that building — the
+          // building's access meets the street there, exactly as a driveway meets a
+          // street in reality. That arm is a genuine geographic feature, not a
+          // procedural lane, so the lateral-edge ban does not apply to it. The arm is
+          // only allowed on the specific street cells and directions the frontage
+          // step identified, and the street keeps its own GIS road sockets.
+          else if (geoSpurArmMask && (geoSpurArmMask[i] & BIT[d]) && trunkMask[i]) {
+            f = f1 > 0 ? f1 : cfg.laneOn;
+          }
         }
         edgeF[i * 4 + d] = f;
       }
@@ -888,6 +916,16 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       for (let o = 0; o < NO; o++) {
         const t = OPT_T[o];
         let w = BW[t] * BMUL[bm + t];
+        // Phase 1 (GIS-aware placement): a forced registry building is a REAL building
+        // at a REAL location, so it must not be banned by the procedural biome rules.
+        // The biome Voronoi paints desert/snow/pinewood over parts of Laramie, and the
+        // building tiles carry no weight in those biomes, which made every forced
+        // building's weight 0 and killed its placement outright. A forced GIS building
+        // is allowed in any biome; the procedural biome weighting still applies to
+        // every non-forced tile.
+        const forcedAtCell = hasGeoConstraints && geoForcedTiles && geoForcedTiles.get(i);
+        const isForcedGISBuilding = forcedAtCell && forcedAtCell.isRegistryBuilding === true;
+        if (isForcedGISBuilding) w = BW[t];
         if (IS_FILLER[t]) {
           const open = 1 - Math.max(F, H);
           if (t === T.meadow) w *= 0.3 + 0.95 * open * open;
@@ -906,7 +944,16 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
           else if (t === T.lantern_post) w *= (0.75 + 1.3 * S) * (OPTIONS[o].rots[0] & 1 ? 0.7 : 1.3); // quality pass: the post is turned 35 deg with a fin pair, so it also reads on an east-west road (was banned there)
           else if (t === T.house) w *= 0.8 + 0.6 * S;
           const pb = PATH_BITS[o];
-          if (pb) {
+          // Phase 1 (GIS-aware placement): a forced registry building is placed at its
+          // real street frontage, so the procedural lane rule — "a path tile must hang
+          // off the trunk road, and its lane edge must point home" — does not apply to
+          // it. That rule exists for the procedural road/lane generator; a GIS building
+          // is not a lane, and applying it zeroed the weight of every forced building.
+          // The building's own connectivity is still enforced by the WFC's socket
+          // propagation against the GIS road mask, and its placement cell was chosen
+          // so that it genuinely adjoins a road.
+          const isGISBuilding = isForcedGISBuilding;
+          if (pb && !isGISBuilding) {
             let home = dT === 0;
             for (let d = 0; d < 4; d++) {
               if (!(pb & BIT[d]) || req[i * 4 + d] !== -1) continue;
@@ -930,7 +977,11 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
           // Boost forced building tiles
           if (geoForcedTiles && geoForcedTiles.has(i)) {
             const forced = geoForcedTiles.get(i);
-            if (t === forced.tileId) {
+            // `t` is the tile INDEX (OPT_T[o]); forced.tileId is the tile ID string.
+            // Comparing them directly never matched, so the forced-tile boost never
+            // fired and every forced building was left at a negligible weight.
+            const forcedTileIndex = T[forced.tileId];
+            if (forcedTileIndex !== undefined && t === forcedTileIndex) {
               w *= forced.weight; // e.g., 1000x for forced tiles
             } else {
               w *= 0.001; // heavily penalize non-forced tiles at forced cells
@@ -940,7 +991,9 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
           // Boost landmark tiles
           if (geoLandmarks && geoLandmarks.has(i)) {
             const landmark = geoLandmarks.get(i);
-            if (t === landmark.tileId) {
+            // Same index-vs-id fix as the forced-tile boost above.
+            const landmarkTileIndex = T[landmark.tileId];
+            if (landmarkTileIndex !== undefined && t === landmarkTileIndex) {
               w *= landmark.weight || 1000;
             } else {
               w *= 0.001;
@@ -951,7 +1004,8 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
           if (geoParkBoosts && geoParkBoosts.has(i)) {
             const boosts = geoParkBoosts.get(i);
             for (const boost of boosts) {
-              if (t === boost.tileId) {
+              const boostTileIndex = T[boost.tileId];
+              if (boostTileIndex !== undefined && t === boostTileIndex) {
                 w *= boost.weight;
               }
             }
@@ -1011,6 +1065,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       const hi = domHi[i];
       const ex = domEx[i];
       const ex2 = domEx2[i];
+      const ex3 = domEx3[i];
       const x = i % N;
       const z = (i / N) | 0;
       for (let d = 0; d < 4; d++) {
@@ -1023,16 +1078,18 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
         let aHi = 0;
         let aEx = 0;
         let aEx2 = 0;
+        let aEx3 = 0;
         for (let s = 0; s < 5; s++) {
-          if ((lo & MASK_LO[d * 5 + s]) | (hi & MASK_HI[d * 5 + s]) | (ex & MASK_EX[d * 5 + s]) | (ex2 & MASK_EX2[d * 5 + s])) { aLo |= MASK_LO[od * 5 + s]; aHi |= MASK_HI[od * 5 + s]; aEx |= MASK_EX[od * 5 + s]; aEx2 |= MASK_EX2[od * 5 + s]; }
+          if ((lo & MASK_LO[d * 5 + s]) | (hi & MASK_HI[d * 5 + s]) | (ex & MASK_EX[d * 5 + s]) | (ex2 & MASK_EX2[d * 5 + s]) | (ex3 & MASK_EX3[d * 5 + s])) { aLo |= MASK_LO[od * 5 + s]; aHi |= MASK_HI[od * 5 + s]; aEx |= MASK_EX[od * 5 + s]; aEx2 |= MASK_EX2[od * 5 + s]; aEx3 |= MASK_EX3[od * 5 + s]; }
         }
         const nLo = domLo[j] & aLo;
         const nHi = domHi[j] & aHi;
         const nEx = domEx[j] & aEx;
         const nEx2 = domEx2[j] & aEx2;
-        if (nLo !== domLo[j] || nHi !== domHi[j] || nEx !== domEx[j] || nEx2 !== domEx2[j]) {
-          domLo[j] = nLo; domHi[j] = nHi; domEx[j] = nEx; domEx2[j] = nEx2; entOk[j] = 0;
-          if ((nLo | nHi | nEx | nEx2) === 0) { qHead = qTail = 0; inQueue.fill(0); return false; }
+        const nEx3 = domEx3[j] & aEx3;
+        if (nLo !== domLo[j] || nHi !== domHi[j] || nEx !== domEx[j] || nEx2 !== domEx2[j] || nEx3 !== domEx3[j]) {
+          domLo[j] = nLo; domHi[j] = nHi; domEx[j] = nEx; domEx2[j] = nEx2; domEx3[j] = nEx3; entOk[j] = 0;
+          if ((nLo | nHi | nEx | nEx2 | nEx3) === 0) { qHead = qTail = 0; inQueue.fill(0); return false; }
           enqueue(j);
         }
       }
@@ -1203,13 +1260,14 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       let hi = HI_ALL;
       let ex = EX_ALL;
       let ex2 = EX2_ALL;
+      let ex3 = EX2_ALL; // reuse EX2_ALL for 128-255 since we don't have EX3_ALL yet
       for (let d = 0; d < 4; d++) {
         const q = req[i * 4 + d];
-        if (q < 0) { lo &= MASK_LO[d * 5 + G] | MASK_LO[d * 5 + P]; hi &= MASK_HI[d * 5 + G] | MASK_HI[d * 5 + P]; ex &= MASK_EX[d * 5 + G] | MASK_EX[d * 5 + P]; ex2 &= MASK_EX2[d * 5 + G] | MASK_EX2[d * 5 + P]; } else { lo &= MASK_LO[d * 5 + q]; hi &= MASK_HI[d * 5 + q]; ex &= MASK_EX[d * 5 + q]; ex2 &= MASK_EX2[d * 5 + q]; }
+        if (q < 0) { lo &= MASK_LO[d * 5 + G] | MASK_LO[d * 5 + P]; hi &= MASK_HI[d * 5 + G] | MASK_HI[d * 5 + P]; ex &= MASK_EX[d * 5 + G] | MASK_EX[d * 5 + P]; ex2 &= MASK_EX2[d * 5 + G] | MASK_EX2[d * 5 + P]; ex3 &= MASK_EX3[d * 5 + G] | MASK_EX3[d * 5 + P]; } else { lo &= MASK_LO[d * 5 + q]; hi &= MASK_HI[d * 5 + q]; ex &= MASK_EX[d * 5 + q]; ex2 &= MASK_EX2[d * 5 + q]; ex3 &= MASK_EX3[d * 5 + q]; }
       }
-      for (let o = 0; o < NO; o++) if (!(W[i * NO + o] > 0)) { if (o < 32) lo &= ~(1 << o); else if (o < 64) hi &= ~(1 << (o - 32)); else if (o < 96) ex &= ~(1 << (o - 64)); else ex2 &= ~(1 << (o - 96)); }
-      if ((lo | hi | ex | ex2) === 0) return false;
-      domLo[i] = lo; domHi[i] = hi; domEx[i] = ex; domEx2[i] = ex2; res[i] = -1; entOk[i] = 0;
+      for (let o = 0; o < NO; o++) if (!(W[i * NO + o] > 0)) { if (o < 32) lo &= ~(1 << o); else if (o < 64) hi &= ~(1 << (o - 32)); else if (o < 96) ex &= ~(1 << (o - 64)); else if (o < 128) ex2 &= ~(1 << (o - 96)); else ex3 &= ~(1 << (o - 128)); }
+      if ((lo | hi | ex | ex2 | ex3) === 0) return false;
+      domLo[i] = lo; domHi[i] = hi; domEx[i] = ex; domEx2[i] = ex2; domEx3[i] = ex3; res[i] = -1; entOk[i] = 0;
       enqueue(i);
     }
 
@@ -1378,6 +1436,7 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       stHi.set(domHi, depth * NN);
       stEx.set(domEx, depth * NN);
       stEx2.set(domEx2, depth * NN);
+      stEx3.set(domEx3, depth * NN);
       stRes.set(res, depth * NN);
       const o = pick(best, rng);
       stCell[depth] = best;
@@ -1397,12 +1456,13 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
                               domHi.set(stHi.subarray(depth * NN, depth * NN + NN));
                               domEx.set(stEx.subarray(depth * NN, depth * NN + NN));
                               domEx2.set(stEx2.subarray(depth * NN, depth * NN + NN));
+                              domEx3.set(stEx3.subarray(depth * NN, depth * NN + NN));
                               res.set(stRes.subarray(depth * NN, depth * NN + NN));
                               entOk.fill(0);
             const c = stCell[depth];
             const b = stOpt[depth];
-            if (b < 32) domLo[c] &= ~(1 << b); else if (b < 64) domHi[c] &= ~(1 << (b - 32)); else if (b < 96) domEx[c] &= ~(1 << (b - 64)); else domEx2[c] &= ~(1 << (b - 96));
-            if ((domLo[c] | domHi[c] | domEx[c] | domEx2[c]) === 0) { ok = false; continue; }
+            if (b < 32) domLo[c] &= ~(1 << b); else if (b < 64) domHi[c] &= ~(1 << (b - 32)); else if (b < 96) domEx[c] &= ~(1 << (b - 64)); else if (b < 128) domEx2[c] &= ~(1 << (b - 96)); else domEx3[c] &= ~(1 << (b - 128));
+            if ((domLo[c] | domHi[c] | domEx[c] | domEx2[c] | domEx3[c]) === 0) { ok = false; continue; }
             enqueue(c);
             ok = propagate();
           }
@@ -1495,8 +1555,37 @@ export function createWFC({ seed = 1, _weights = null, _fault = 0 } = {}) {
       const rot = opt.rots.length === 1 ? opt.rots[0] : opt.rots[hash2(x, z, seed + 77) % opt.rots.length];
       cells[i] = Object.freeze({ x, z, tileId: opt.tileId, model: opt.tile.model, rot, sockets: socketsOf(opt.tileId, rot), tags: opt.tile.tags, biome: BIOMES[cBiome[i]] });
     }
+    let chunk = { cells, attempts: attempt, fallback: !done };
+    chunk = postProcessBuildings(chunk, cx, cz);
     stats.chunks++;
-    return { cells, attempts: attempt, fallback: !done };
+    return chunk;
+  }
+
+  // Post-process generated chunk to replace generic building tile IDs with per-building OSM IDs
+  function postProcessBuildings(chunk, cx, cz) {
+    const chunkKey = `${cx},${cz}`;
+    const geoState = _geoStateRef.value?.get(chunkKey);
+    if (!geoState || !geoState.forcedTiles) return chunk;
+    
+    const cells = chunk.cells.slice(); // shallow copy
+    for (let i = 0; i < NN; i++) {
+      const forced = geoState.forcedTiles.get(i);
+      if (forced && forced.isRegistryBuilding && forced.osmId) {
+        const opt = OPTIONS[res[i]];
+        // Replace tileId with per-building OSM ID, keep the rotation from the solved option
+        const rot = opt.rots.length === 1 ? opt.rots[0] : opt.rots[hash2(chunk.cells[i].x, chunk.cells[i].z, seed + 77) % opt.rots.length];
+        // Use sockets from the registry tile type (generic type) for connectivity
+        const socketTileId = forced.registryTileType || forced.tileId;
+        cells[i] = Object.freeze({ 
+          ...chunk.cells[i], 
+          tileId: forced.osmId,
+          model: forced.osmId, // Use OSM ID as model key for asset lookup
+          rot,
+          sockets: socketsOf(socketTileId, rot)
+        });
+      }
+    }
+    return { ...chunk, cells };
   }
 
   const keyOf = (cx, cz) => (cx + 4194304) * 8388608 + (cz + 4194304);

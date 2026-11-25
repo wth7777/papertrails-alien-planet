@@ -37,7 +37,7 @@ const seed = Number.isFinite(seedParam) ? seedParam : CONFIG.DEFAULT_SEED;
 const quality = QUALITY[params.get('quality')] ? params.get('quality') : CONFIG.DEFAULT_QUALITY;
 const muted = params.get('mute') === '1';
 const showHint = params.get('hint') !== '0';
-const isLaramie = params.get('laramie') === '1';
+const isLaramie = params.get('laramie') !== '0';
 const enableDiag = params.get('diag') === '1';
 
 // ---- Diagnostic Overlay (mobile-readable, enabled by ?diag=1) -------------------------------
@@ -60,6 +60,13 @@ function diagError(...args) {
   diagLogs.push(entry);
   if (diagLogs.length > MAX_DIAG_LOGS) diagLogs.shift();
   if (enableDiag) console.error('[DIAG]', ...args);
+  // Also update status overlay for critical errors
+  if (typeof laramieStatusEl !== 'undefined' && laramieStatusEl) {
+    laramieStatusEl.textContent = '[ERROR] ' + msg;
+    laramieStatusEl.style.borderColor = '#f44';
+    laramieStatusEl.style.color = '#f44';
+    laramieStatusEl.style.boxShadow = '0 0 20px #f44';
+  }
 }
 
 function createDiagOverlay() {
@@ -70,6 +77,13 @@ function createDiagOverlay() {
   el.innerHTML = '<b>DIAGNOSTIC MODE</b> — initializing...';
   document.body.appendChild(el);
   diagOverlay = el;
+  // Global error handlers
+  window.addEventListener('error', (e) => {
+    diagError('[UNCAUGHT]', e.message, e.filename, e.lineno, e.colno);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    diagError('[UNHANDLED REJECTION]', e.reason);
+  });
   setInterval(() => {
     if (!diagOverlay) return;
     const lines = diagLogs.slice(-80).map(e => {
@@ -94,6 +108,19 @@ window.addEventListener('unhandledrejection', (e) => {
 state.seed = seed;
 state.quality = quality;
 
+let laramieStatusEl = null;
+function setLaramieStatus(msg, isError = false) {
+  if (!laramieStatusEl) {
+    laramieStatusEl = document.createElement('div');
+    laramieStatusEl.style.cssText = 'position:fixed;top:10px;left:10px;z-index:10000;background:rgba(0,0,0,0.95);color:#0f0;padding:10px 14px;font:13px monospace;max-width:95vw;border-radius:6px;border:3px solid #0f0;box-shadow:0 0 20px #0f0;';
+    document.body.appendChild(laramieStatusEl);
+  }
+  laramieStatusEl.textContent = msg;
+  laramieStatusEl.style.borderColor = isError ? '#f44' : '#0f0';
+  laramieStatusEl.style.color = isError ? '#f44' : '#0f0';
+  laramieStatusEl.style.boxShadow = isError ? '0 0 20px #f44' : '0 0 20px #0f0';
+}
+
 async function boot() {
   createDiagOverlay();
   diagLog('boot() started');
@@ -111,8 +138,19 @@ async function boot() {
   const materials = createMaterials({ quality });
   diagLog('materials created');
   
-  const assets = await loadAssets({ materials, renderer, quality });
+  // Version indicator
+  setLaramieStatus('Paper Trails Laramie v2026.11.25 — Loading assets...');
+  diagLog('About to loadAssets...');
+  let assets;
+  try {
+    assets = await loadAssets({ materials, renderer, quality });
+    diagLog('loadAssets succeeded');
+  } catch (e) {
+    diagError('loadAssets FAILED:', e);
+    throw e;
+  }
   diagLog('assets loaded');
+  setLaramieStatus('Paper Trails Laramie v2026.11.25 — Loading GIS data...');
   
   materials.setTextures(assets.textures);
   diagLog('materials textures set');
@@ -125,13 +163,24 @@ async function boot() {
   let laramieConstraints = null;
   
   if (isLaramie) {
+    setLaramieStatus('[LARAMIE] Loading geographic constraints...');
+    console.log('[LARAMIE DEBUG] Loading geographic constraints...');
     diagLog('[Laramie] Loading geographic constraints...');
     try {
       laramieConstraints = await buildLaramieConstraints();
+      diagLog('[Laramie] buildLaramieConstraints succeeded');
+      setLaramieStatus('[LARAMIE] Constraints loaded ✓');
+      console.log('[LARAMIE DEBUG] Constraints loaded, creating geographic WFC...');
       diagLog('[Laramie] Constraints loaded, creating geographic WFC...');
       wfc = createLaramieWFC({ seed, constraints: laramieConstraints });
+      diagLog('[Laramie] createLaramieWFC succeeded');
+      setLaramieStatus('[LARAMIE] Geographic WFC created ✓');
+      console.log('[LARAMIE DEBUG] Geographic WFC created');
       diagLog('[Laramie] Geographic WFC created');
     } catch (err) {
+      diagError('[Laramie] buildLaramieConstraints FAILED:', err);
+      setLaramieStatus('[LARAMIE] FAILED: ' + (err?.message || err), true);
+      console.error('[LARAMIE DEBUG] Failed to load constraints:', err);
       diagError('[Laramie] Failed to load constraints:', err);
       diagLog('[Laramie] Falling back to base WFC');
       wfc = createWFC({ seed });
@@ -307,12 +356,14 @@ async function boot() {
   diagLog('resize done');
   
   // Laramie: spawn at reference pin (First Interstate Bank area)
+  // First Interstate Bank is at PT tile (44, 59) in world coords
+  // Spawn on the street south of the bank
   let spawnX = 0, spawnZ = 0;
   if (isLaramie) {
-    // Reference pin is at (0,0) in PT coords = First Interstate Bank
-    // Spawn slightly south on the street
-    spawnX = 0;
-    spawnZ = 20; // ~10 tiles south
+    // Reference point: First Interstate Bank at PT (44, 59) = world (88, 118)
+    // Spawn slightly south on the street (3rd St)
+    spawnX = 88;
+    spawnZ = 138; // ~10 tiles south of bank
     if (!world.isWalkable(spawnX, spawnZ)) {
       const [x, z] = initialPosition();
       spawnX = x; spawnZ = z;
@@ -324,6 +375,7 @@ async function boot() {
   
   traveller.teleport(spawnX, spawnZ);
   diagLog('traveller teleported');
+  setLaramieStatus('[LARAMIE] Ready — Downtown Laramie loaded');
   
   controls.clearTarget();
   diagLog('controls cleared');

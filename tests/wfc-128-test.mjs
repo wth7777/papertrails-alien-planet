@@ -42,8 +42,8 @@ async function runTests() {
   console.log('--- Test 1: Option Count ---');
   const NO = OPTIONS.length;
   console.log(`Total options: ${NO}`);
-  assert(NO === 104, `Total options should be 104 (within 128 limit), got ${NO}`);
-  assert(NO <= 128, `Options should not exceed 128, got ${NO}`);
+  assert(NO === 147, `Total options should be 147 (within 256 limit), got ${NO}`);
+  assert(NO <= 256, `Options should not exceed 256, got ${NO}`);
   
   // Test 2: Verify new tile types exist
   console.log('\n--- Test 2: New Tile Types ---');
