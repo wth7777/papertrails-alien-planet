@@ -185,6 +185,12 @@ export const animals = {
       rocks: [['fox', 0.25, 1, 1, ''], ['owl', 0.4, 1, 1, 'np'], ['squirrel', 0.3, 1, 1, 'd']],
       hills: [['deer', 0.25, 1, 2, 'h'], ['rabbit', 0.2, 1, 1, '']],
     },
+    alien: {
+      alien_dwelling: [['cat', 0.4, 1, 1, '', 'door'], ['lizard', 0.3, 1, 2, 'd', 'on:pod_c|pod_l|pod_r']],
+      alien_landmark: [['owl', 0.5, 1, 1, 'np', 'top:spire|ring_a|ring_b'], ['cat', 0.2, 1, 1, '', 'on:platform']],
+      alien_crystal: [['lizard', 0.5, 1, 2, 'd', 'on:spike_0|spike_1|spike_2'], ['cat', 0.15, 1, 1, '', 'on:base_block']],
+      alien_river: [['duck', 0.6, 1, 2, 'w'], ['duck', 0.4, 1, 1, 'b']],
+    },
   },
 
   /** Mesh names of a tile model an owl may perch on (first match by hash), and the height window of their tops. */
