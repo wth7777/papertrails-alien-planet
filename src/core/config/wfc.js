@@ -89,6 +89,8 @@ export const wfc = {
     // round 3 (tiles): hamlet set. integrator (round 3): wfc.js treats village / village_b / village_green as one hamlet family
     // (settlement factor, clustering bonus, run of at most 3); the variants lean on a village or house next to them.
     village_b: 1.8, village_green: 1.4, river_reeds: 0.5,
+    // alien asset families (Phase 6) - high base weight so they dominate the alien biome
+    alien_dwelling: 3.0, alien_landmark: 2.0, alien_crystal: 2.0, alien_river: 1.5,
   },
 
   /**

@@ -40,14 +40,14 @@ const B = (heartland, desert, snow, blossom, pinewood) => ({ heartland, desert, 
  */
 export const MODELS = {
   // --- all-grass fillers -------------------------------------------------------------------
-  meadow: { sockets: S(g, g, g, g), tags: ['open'], biomes: B(1, 0.75, 0.7, 0.8, 0.45) }, // grass tufts only; the guaranteed FALLBACK
-  meadow_flowers: { sockets: S(g, g, g, g), tags: ['open'], biomes: B(1, 0, 0.1, 2.4, 0.5) },
-  hills: { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: B(1, 0, 0.12, 0.6, 0.3) }, // layered rolling-hill silhouettes
-  forest: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: B(1, 0, 0, 0.6, 0.7) }, // 4-6 layered trees
-  grove: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: B(1, 0, 0, 1.7, 0.3) }, // 1-2 trees, mostly open
-  rocks: { sockets: S(g, g, g, g), tags: ['blocker'], biomes: B(1, 1.5, 1.1, 0.4, 0.9) },
-  pond: { sockets: S(g, g, g, g), tags: ['water', 'blocker'], biomes: B(1, 0, 0, 1.4, 1.3) }, // round pond in the middle + reeds
-  windmill: { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: B(1, 0, 0, 1.0, 0.1) },
+  meadow: { sockets: S(g, g, g, g), tags: ['open'], biomes: B(0, 0.75, 0.7, 0.8, 0.45) }, // grass tufts only; the guaranteed FALLBACK
+  meadow_flowers: { sockets: S(g, g, g, g), tags: ['open'], biomes: B(0, 0, 0.1, 2.4, 0.5) },
+  hills: { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: B(0, 0, 0.12, 0.6, 0.3) }, // layered rolling-hill silhouettes
+  forest: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: B(0, 0, 0, 0.6, 0.7) }, // 4-6 layered trees
+  grove: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: B(0, 0, 0, 1.7, 0.3) }, // 1-2 trees, mostly open
+  rocks: { sockets: S(g, g, g, g), tags: ['blocker'], biomes: B(0, 1.5, 1.1, 0.4, 0.9) },
+  pond: { sockets: S(g, g, g, g), tags: ['water', 'blocker'], biomes: B(0, 0, 0, 1.4, 1.3) }, // round pond in the middle + reeds
+  windmill: { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: B(0, 0, 0, 1.0, 0.1) },
   // --- paths (rot 0 layout in comments) -------------------------------------------------------
   path_straight: { sockets: S(p, g, p, g), tags: ['path'] }, // N-S
   path_corner: { sockets: S(p, p, g, g), tags: ['path'] }, // N-E
@@ -96,15 +96,43 @@ export const MODELS = {
   market_square: { sockets: S(p, p, p, p), tags: ['path', 'landmark'], biomes: { heartland: 1.0, blossom: 0.6 } },
   manor: { sockets: S(g, g, p, g), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 0.7, blossom: 0.5 } },
 
-    // --- Laramie geographic constraints (socketed connectors) ---------------------------------
+    // --- Phase 1: Height-specific building variants -------------------------------------------
+    // These share sockets with their base types until custom GLTF models are created.
+    // house_1/2/3: single-path-socket house (path to S), same as house
+    house_1: { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: B(1, 0, 0, 1.1, 0.45) },
+    house_2: { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: B(1, 0, 0, 1.1, 0.45) },
+    house_3: { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: B(1, 0, 0, 1.1, 0.45) },
+    // manor_2/3: single-path-socket manor (path to S), same as manor
+    manor_2: { sockets: S(g, g, p, g), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 0.7, blossom: 0.5 } },
+    manor_3: { sockets: S(g, g, p, g), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 0.7, blossom: 0.5 } },
+
+      // --- Laramie geographic constraints (socketed connectors) ---------------------------------
       // rail: N-S only, double track. Used for UP Main Line.
       rail_straight: { sockets: S('rail', g, 'rail', g), tags: ['rail'] }, // N-S
       rail_corner: { sockets: S('rail', 'rail', g, g), tags: ['rail'] }, // N-E
       // crossing: pedestrian crossings at intersections
       crossing: { sockets: S('crossing', 'crossing', 'crossing', 'crossing'), tags: ['crossing'] },
       // depot: custom tile for train station
-      depot: { sockets: S('rail', 'path', 'rail', 'path'), tags: ['rail', 'path', 'landmark'] },
-    };
+        depot: { sockets: S('rail', 'path', 'rail', 'path'), tags: ['rail', 'path', 'landmark'] },
+
+        // --- Phase 6: Custom landmark models -------------------------------------------------
+        // Custom detailed models for verified Laramie landmarks
+        depot_custom: { sockets: S('rail', 'path', 'rail', 'path'), tags: ['rail', 'path', 'landmark'], custom: true },
+        city_hall: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        masonic_temple: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        st_matthews_cathedral: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        first_interstate_bank: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        albany_courthouse: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        wyo_theatre: { sockets: S('path', 'path', 'path', 'path'), tags: ['path', 'landmark'], biomes: { heartland: 1.0 } },
+        laramie_fire_station: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        durlacher_house: { sockets: S('grass', 'grass', 'path', 'grass'), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        blair_house: { sockets: S('grass', 'grass', 'path', 'grass'), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
+        // --- alien asset families (Phase 6) ---
+        alien_dwelling: { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: B(10, 5, 5, 5, 5) },
+        alien_landmark: { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: B(8, 4, 4, 4, 4) },
+        alien_crystal:  { sockets: S(g, g, g, g), tags: ['blocker'], biomes: B(6, 4, 4, 4, 4) },
+        alien_river:    { sockets: S(p, g, p, g), tags: ['path', 'water'], biomes: B(0, 0, 0, 0, 0) },
+      };
 
 export const MODEL_IDS = Object.keys(MODELS);
 export const FALLBACK_MODEL = 'meadow';
