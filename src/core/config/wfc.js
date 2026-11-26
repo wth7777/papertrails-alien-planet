@@ -102,6 +102,7 @@ export const wfc = {
     giant_mushroom: 1.8, fallen_spire: 1.4,
     bulb_patch: 1.5, lantern_flower: 1.6,
     bone_spire: 1.7, ash_cones: 1.2, frost_moss: 1.0,
+    alien_river: 1.5,
     // retired earth / Laramie content (banned everywhere)
     forest: 0, grove: 0, pond: 0, windmill: 0, house: 0, village: 0, village_b: 0, village_green: 0,
     river_reeds: 0, rail_straight: 0, rail_corner: 0, crossing: 0, depot: 0,

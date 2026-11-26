@@ -160,10 +160,13 @@ export const MODELS = {
                                 bulb_patch:      { sockets: S(g, g, g, g), tags: ['open'], biomes: { blossom: 2.0 } },
                                 lantern_flower:  { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { blossom: 2.5 } },
                                 // Ashveil (snow)
-                                bone_spire:      { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { snow: 2.5 } },
-                                ash_cones:       { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: { snow: 1.5 } },
-                                frost_moss:      { sockets: S(g, g, g, g), tags: ['open'], biomes: { snow: 1.2 } },
-                              };
+                                                                bone_spire:      { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { snow: 2.5 } },
+                                                                ash_cones:       { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: { snow: 1.5 } },
+                                                                frost_moss:      { sockets: S(g, g, g, g), tags: ['open'], biomes: { snow: 1.2 } },
+
+                                                                // Universal connector
+                                                                alien_river:     { sockets: S(p, g, p, g), tags: ['path', 'water'], biomes: {} },
+                                                              };
 
 export const MODEL_IDS = Object.keys(MODELS);
 export const FALLBACK_MODEL = 'meadow';

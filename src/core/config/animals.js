@@ -180,6 +180,7 @@ export const animals = {
       bone_spire: [['lizard', 0.5, 1, 2, 'd', 'on:rib_'], ['owl', 0.45, 1, 1, 'np', 'top:crown|spire_']],
       ash_cones: [['lizard', 0.45, 1, 2, 'd', 'on:cone_']],
       frost_moss: [['cat', 0.25, 1, 1, '', 'on:patch_'], ['lizard', 0.2, 1, 2, 'd']],
+      alien_river: [['duck', 0.6, 1, 2, 'w'], ['duck', 0.4, 1, 1, 'b']],
     },
     heartland: {
       meadow: [['cat', 0.3, 1, 1, '', 'on:fence_pad'], ['lizard', 0.2, 1, 2, 'd']],
