@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alien Planet Diagnostic</title>
+    <style>
+      html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;font-family:monospace;color:#0f0}
+      #diagnostic{position:fixed;top:10px;left:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.9);padding:15px;border-radius:8px}
+      #status{margin:5px 0}.label{color:#ff0}.pass{color:#0f0}.fail{color:#f44}.waiting{color:#ff8}
+      #js-error{color:#f44;white-space:pre-wrap;margin-top:10px;padding:10px;background:#200;border-radius:4px}
+      #webgl-info{margin-top:10px;padding:10px;background:#200;border-radius:4px;font-size:12px}
+    </style>
+  </head>
+  <body>
+    <canvas id="atlas" tabindex="0" style="position:fixed;inset:0;width:100%;height:100%;display:block"></canvas>
+    <div id="diagnostic">
+      <div class="status"><span class="label">01.</span> JS Bundle: <span id="s1" class="waiting">WAITING</span></div>
+      <div class="status"><span class="label">02.</span> Three.js: <span id="s2" class="waiting">WAITING</span></div>
+      <div class="status"><span class="label">03.</span> WebGL: <span id="s3" class="waiting">WAITING</span></div>
+      <div class="status"><span class="label">04.</span> Load GLB: <span id="s4" class="waiting">WAITING</span></div>
+      <div class="status"><span class="label">05.</span> First Render: <span id="s5" class="waiting">WAITING</span></div>
+      <div id="js-error"></div><div id="webgl-info"></div>
+    </div>
+    <script type="module">
+      const status = (id,pass)=>{const el=document.getElementById(id);el.textContent=pass?'PASS':'FAIL';el.className=pass?'pass':'fail'};
+      const log=(...a)=>console.log('[DIAG]',...a);
+      window.onerror=(m,u,l,c,e)=>{document.getElementById('js-error').textContent=m+'\\n'+(e?.stack||'');return false};
+      status('s1',true);log('JS started');
+      
+      import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js').then(({Scene,PerspectiveCamera,WebGLRenderer,BoxGeometry,MeshBasicMaterial,Mesh,Color,Clock})=>{
+        status('s2',true);log('Three.js CDN OK');
+        const canvas=document.getElementById('atlas'),renderer=new WebGLRenderer({canvas,antialias:true,alpha:true});
+        renderer.setClearColor(0x000000);renderer.setPixelRatio(window.devicePixelRatio);renderer.setSize(window.innerWidth,window.innerHeight);
+        const gl=renderer.getContext();
+        status('s3',!gl.isContextLost());log('WebGL:',gl.isContextLost()?'LOST':'OK');
+        
+        document.getElementById('webgl-info').innerHTML=
+          'GL: '+gl.getParameter(gl.VERSION)+'<br/>'+
+          'Renderer: '+gl.getParameter(gl.RENDERER)+'<br/>'+
+          'MaxTex: '+gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+        
+        const scene=new Scene(); scene.background=new Color(0x0a0f1a);
+        const camera=new PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,1000);
+        camera.position.set(0,2,5);
+        
+        const geo=new BoxGeometry(1,1,1),mat=new MeshBasicMaterial({color:0x00ff00}),cube=new Mesh(geo,mat);
+        scene.add(cube);
+        
+        const clock=new Clock();
+        let renders=0;
+        function animate(){
+          if(gl.isContextLost()){document.getElementById('js-error').textContent='CONTEXT LOST';return;}
+          cube.rotation.x+=clock.getDelta()*0.5;
+          cube.rotation.y+=clock.getDelta()*0.5;
+          renderer.render(scene,camera);
+          if(++renders===5)status('s5',true);
+          window.requestAnimationFrame(animate);
+        }
+        animate();
+        
+        setTimeout(()=>{log('Loading tiles.glb...');status('s4',false);
+          import('https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/loaders/GLTFLoader.js')
+          .then(({GLTFLoader})=>{
+            const loader=new GLTFLoader();
+            loader.load('/models/tiles.glb',(gltf)=>{
+              log('Loaded!'); status('s4',true);
+              const m=gltf.scene; m.scale.set(0.1,0.1,0.1); m.position.set(0,-0.5,0); scene.add(m);
+              const meadow=m.getObjectByName('alien_meadow');
+              document.getElementById('js-error').innerHTML=(meadow?'Found ':'Not found ')+'alien_meadow '+meadow?.children?.length;
+            },(x)=>{},(e)=>{document.getElementById('js-error').textContent='Load err: '+e.message;});
+          }).catch(e)=>{document.getElementById('js-error').textContent='GLTF error: '+e.message;};
+        },500);
+      }).catch(e)=>{document.getElementById('js-error').textContent='Three error: '+e.message;};
+    </script>
+  </body>
+</html>
