@@ -97,6 +97,11 @@ export const wfc = {
     alien_meadow: 1.5, alien_grove: 1.2, alien_stones: 1.0, pod_dwelling: 2.0, glowpool: 0.8,
     crystal_field_a: 1.4, crystal_field_b: 1.2, crystal_spire: 1.8,
     spire_forest_a: 2.0, spire_forest_b: 1.8,
+    // Wave 2 alien tiles
+    ruin_arch: 1.5, ruin_wall: 1.2, glass_dunes: 1.1,
+    giant_mushroom: 1.8, fallen_spire: 1.4,
+    bulb_patch: 1.5, lantern_flower: 1.6,
+    bone_spire: 1.7, ash_cones: 1.2, frost_moss: 1.0,
     // retired earth / Laramie content (banned everywhere)
     forest: 0, grove: 0, pond: 0, windmill: 0, house: 0, village: 0, village_b: 0, village_green: 0,
     river_reeds: 0, rail_straight: 0, rail_corner: 0, crossing: 0, depot: 0,
@@ -123,5 +128,10 @@ export const wfc = {
     alien_meadow: [0, 1, 2, 3], alien_grove: [0, 1, 2, 3], alien_stones: [0, 1, 2, 3],
     crystal_field_a: [0, 1, 2, 3], crystal_field_b: [0, 1, 2, 3],
     spire_forest_a: [0, 1, 2, 3], spire_forest_b: [0, 1, 2, 3],
+    // Wave 2 alien all-grass tiles (free rotation)
+    ruin_arch: [0, 1, 2, 3], ruin_wall: [0, 1, 2, 3], glass_dunes: [0, 1, 2, 3],
+    giant_mushroom: [0, 1, 2, 3], fallen_spire: [0, 1, 2, 3],
+    bulb_patch: [0, 1, 2, 3], lantern_flower: [0, 1, 2, 3],
+    bone_spire: [0, 1, 2, 3], ash_cones: [0, 1, 2, 3], frost_moss: [0, 1, 2, 3],
   },
 };

@@ -145,9 +145,25 @@ export const MODELS = {
                 crystal_field_b: { sockets: S(g, g, g, g), tags: ['open'], biomes: { desert: 1.2 } },
                 crystal_spire:   { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { desert: 2.5 } },
                 // Spirewood (pinewood)
-                spire_forest_a: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { pinewood: 3.0 } },
-                spire_forest_b: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { pinewood: 2.5 } },
-              };
+                                spire_forest_a: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { pinewood: 3.0 } },
+                                spire_forest_b: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { pinewood: 2.5 } },
+
+                                // --- Wave 2 alien tiles (ALIEN PLANET) ---
+                                // Crystal Wastes (desert)
+                                ruin_arch:       { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { desert: 2.0 } },
+                                ruin_wall:       { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: { desert: 1.5 } },
+                                glass_dunes:     { sockets: S(g, g, g, g), tags: ['open'], biomes: { desert: 1.3 } },
+                                // Spirewood (pinewood)
+                                giant_mushroom:  { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { pinewood: 2.5 } },
+                                fallen_spire:    { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: { pinewood: 2.0 } },
+                                // Bloomveld (blossom)
+                                bulb_patch:      { sockets: S(g, g, g, g), tags: ['open'], biomes: { blossom: 2.0 } },
+                                lantern_flower:  { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { blossom: 2.5 } },
+                                // Ashveil (snow)
+                                bone_spire:      { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { snow: 2.5 } },
+                                ash_cones:       { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: { snow: 1.5 } },
+                                frost_moss:      { sockets: S(g, g, g, g), tags: ['open'], biomes: { snow: 1.2 } },
+                              };
 
 export const MODEL_IDS = Object.keys(MODELS);
 export const FALLBACK_MODEL = 'meadow';

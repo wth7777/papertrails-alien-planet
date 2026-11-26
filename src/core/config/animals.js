@@ -169,6 +169,17 @@ export const animals = {
       crystal_spire: [['lizard', 0.4, 1, 2, 'd', 'on:base_crystal_|spire_'], ['owl', 0.4, 1, 1, 'np', 'top:spire_']],
       spire_forest_a: [['cat', 0.25, 1, 1, '', 'on:canopy_'], ['lizard', 0.2, 1, 2, 'd', 'on:trunk_'], ['owl', 0.35, 1, 1, 'np', 'top:canopy_']],
       spire_forest_b: [['cat', 0.2, 1, 1, '', 'on:canopy_'], ['lizard', 0.15, 1, 2, 'd', 'on:trunk_'], ['owl', 0.4, 1, 1, 'np', 'top:canopy_']],
+      // Wave 2 alien tiles
+      ruin_arch: [['lizard', 0.4, 1, 2, 'd', 'on:rubble_|arch_'], ['owl', 0.4, 1, 1, 'np', 'top:arch_top']],
+      ruin_wall: [['lizard', 0.45, 1, 2, 'd', 'on:wall_'], ['cat', 0.2, 1, 1, '', 'on:capstone']],
+      glass_dunes: [['lizard', 0.35, 1, 2, 'd', 'on:dune_']],
+      giant_mushroom: [['cat', 0.3, 1, 1, '', 'on:cap|gills_'], ['lizard', 0.25, 1, 2, 'd', 'on:stem|spores_'], ['owl', 0.35, 1, 1, 'np', 'top:cap']],
+      fallen_spire: [['lizard', 0.4, 1, 2, 'd', 'on:debris_|crystal_shard_'], ['cat', 0.2, 1, 1, '', 'on:trunk']],
+      bulb_patch: [['cat', 0.3, 1, 1, '', 'on:bulb_|bloom_'], ['lizard', 0.2, 1, 2, 'd']],
+      lantern_flower: [['cat', 0.3, 1, 1, '', 'on:lantern_|glow_'], ['lizard', 0.2, 1, 2, 'd', 'on:stem_']],
+      bone_spire: [['lizard', 0.5, 1, 2, 'd', 'on:rib_'], ['owl', 0.45, 1, 1, 'np', 'top:crown|spire_']],
+      ash_cones: [['lizard', 0.45, 1, 2, 'd', 'on:cone_']],
+      frost_moss: [['cat', 0.25, 1, 1, '', 'on:patch_'], ['lizard', 0.2, 1, 2, 'd']],
     },
     heartland: {
       meadow: [['cat', 0.3, 1, 1, '', 'on:fence_pad'], ['lizard', 0.2, 1, 2, 'd']],
@@ -193,11 +204,19 @@ export const animals = {
       crystal_field_a: [['lizard', 0.5, 1, 2, 'd', 'on:crystal_']],
       crystal_field_b: [['lizard', 0.5, 1, 2, 'd', 'on:crystal_']],
       crystal_spire: [['lizard', 0.6, 1, 2, 'd', 'on:base_crystal_|spire_'], ['owl', 0.5, 1, 1, 'np', 'top:spire_']],
+      // Wave 2 - Crystal Wastes
+      ruin_arch: [['lizard', 0.5, 1, 2, 'd', 'on:rubble_|arch_'], ['owl', 0.5, 1, 1, 'np', 'top:arch_top']],
+      ruin_wall: [['lizard', 0.55, 1, 2, 'd', 'on:wall_'], ['cat', 0.25, 1, 1, '', 'on:capstone']],
+      glass_dunes: [['lizard', 0.45, 1, 2, 'd', 'on:dune_']],
     },
     snow: {
       meadow: [['cat', 0.2, 1, 1, '', 'on:ash_drifts'], ['lizard', 0.15, 1, 2, 'd']],
       rocks: [['lizard', 0.3, 1, 1, 'd']],
       hills: [['cat', 0.15, 1, 1, '', 'on:bone_spires']],
+      // Wave 2 - Ashveil
+      bone_spire: [['lizard', 0.6, 1, 2, 'd', 'on:rib_'], ['owl', 0.55, 1, 1, 'np', 'top:crown|spire_']],
+      ash_cones: [['lizard', 0.55, 1, 2, 'd', 'on:cone_']],
+      frost_moss: [['cat', 0.35, 1, 1, '', 'on:patch_'], ['lizard', 0.3, 1, 2, 'd']],
     },
     blossom: {
       meadow: [['cat', 0.25, 1, 1, '', 'on:bulb_patch'], ['lizard', 0.2, 1, 2, 'd'], ['songbird', 0.3, 2, 3, 'dh']],
@@ -205,6 +224,9 @@ export const animals = {
       grove: [['songbird', 0.45, 2, 3, 'dh'], ['rabbit', 0.25, 1, 1, '']],
       forest: [['songbird', 0.35, 2, 3, 'dh'], ['cat', 0.2, 1, 1, '']],
       hills: [['cat', 0.2, 1, 1, '', 'on:lantern_flower']],
+      // Wave 2 - Bloomveld
+      bulb_patch: [['cat', 0.4, 1, 1, '', 'on:bulb_|bloom_'], ['lizard', 0.3, 1, 2, 'd'], ['songbird', 0.35, 2, 3, 'dh']],
+      lantern_flower: [['cat', 0.4, 1, 1, '', 'on:lantern_|glow_'], ['lizard', 0.25, 1, 2, 'd', 'on:stem_'], ['songbird', 0.3, 2, 3, 'dh']],
     },
     pinewood: {
       meadow: [['cat', 0.2, 1, 1, '', 'on:mushroom_glade'], ['lizard', 0.15, 1, 2, 'd'], ['hedgehog', 0.25, 1, 1, 'n']],
@@ -216,6 +238,9 @@ export const animals = {
       // Wave 1 - Spirewood
       spire_forest_a: [['cat', 0.35, 1, 1, '', 'on:canopy_'], ['lizard', 0.25, 1, 2, 'd', 'on:trunk_'], ['owl', 0.45, 1, 1, 'np', 'top:canopy_']],
       spire_forest_b: [['cat', 0.3, 1, 1, '', 'on:canopy_'], ['lizard', 0.2, 1, 2, 'd', 'on:trunk_'], ['owl', 0.5, 1, 1, 'np', 'top:canopy_']],
+      // Wave 2 - Spirewood
+      giant_mushroom: [['cat', 0.4, 1, 1, '', 'on:cap|gills_'], ['lizard', 0.3, 1, 2, 'd', 'on:stem|spores_'], ['owl', 0.4, 1, 1, 'np', 'top:cap']],
+      fallen_spire: [['lizard', 0.5, 1, 2, 'd', 'on:debris_|crystal_shard_'], ['cat', 0.25, 1, 1, '', 'on:trunk'], ['owl', 0.4, 1, 1, 'np', 'top:trunk']],
     },
   },
 
