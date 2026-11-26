@@ -19,7 +19,7 @@ import { createPaperAudio } from './audio/paper.js';
 import { createMusic } from './audio/music.js';
 import { createDayNight } from './render/daynight.js';
 import { createLife } from './life/life.js';
-// import { createAnimals } from './life/animals.js'; // DISABLED: no earth animals
+import { createAnimals } from './life/animals.js';
 import { createGame } from './game/index.js';
 import { createViews } from './camera/views.js';
 // Allocation-free two-dimensional length.
@@ -146,15 +146,15 @@ async function boot() {
     diagLog('daynight created');
 
     // ambient life + weather (leaves, snow, rain, birds, chimney smoke, fireflies ...): 2 draw calls; ?life=0 disables it
-    const life = params.get('life') === '0' || CONFIG.life.enabled === false ? null : createLife({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed });
-    diagLog('life created:', !!life);
+        const life = params.get('life') === '0' || CONFIG.life.enabled === false ? null : createLife({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed });
+        diagLog('life created:', !!life);
 
-    // living animals DISABLED: no earth animals in alien world
-    const animals = null;
-    diagLog('animals created:', !!animals);
+        // living animals - alien creatures on alien tiles (cats, lizards, owls, ducks)
+        const animals = createAnimals({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed });
+        diagLog('animals created:', !!animals);
 
     // Gameplay progress is saved independently for each world seed.
-    const game = createGame({ scene, renderer, world, wfc, traveller: alienPlayer, follow, controls, lights, post, daynight, music, audio, life, assets, materials, seed, quality });
+    const game = createGame({ scene, renderer, world, wfc, traveller: alienPlayer, follow, controls, lights, post, daynight, music, audio, life, animals, assets, materials, seed, quality });
     diagLog('game created');
 
     follow.setAssistGate(game.modal);
@@ -193,12 +193,12 @@ async function boot() {
             state.listener.x = p.x; state.listener.z = p.z;
             state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
             world.update(dt, p, alienPlayer.moveDir);
-            views.update(dt);
-            follow.update(dt, alienPlayer);
-            daynight.update(dt);
-            if (life) life.update(dt, p, follow.camera);
-            // if (animals) animals.update(dt); // DISABLED
-            game.update(dt);
+                        views.update(dt);
+                        follow.update(dt, alienPlayer);
+                        daynight.update(dt);
+                        if (life) life.update(dt, p, follow.camera);
+                        if (animals) animals.update(dt);
+                        game.update(dt);
             lights.update(dt, alienPlayer, follow.camera);
             materials.update(dt);
             if (enableDiag && loop.frame < 5) diagLog('update frame', loop.frame, 'OK');
