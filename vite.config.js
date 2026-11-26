@@ -12,18 +12,10 @@ export default defineConfig({
     minify: false,
     rollupOptions: {
       input: {
-        main: './index.html',
-        laramie: './index-laramie.html'
+        main: './index.html'
       },
       output: {
         manualChunks: (id) => {
-          // Put everything laramie-related in one chunk to avoid cross-chunk import conflicts
-          if (id.includes('src/main-laramie.js') || 
-              id.includes('src/geo/') ||
-              id.includes('core/config/') ||
-              id.includes('core/config.js')) {
-            return 'laramie';
-          }
           // Put node_modules in vendor chunk
           if (id.includes('node_modules')) {
             return 'vendor';
