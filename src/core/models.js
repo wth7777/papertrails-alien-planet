@@ -127,12 +127,27 @@ export const MODELS = {
         laramie_fire_station: { sockets: S('path', 'grass', 'path', 'grass'), tags: ['path', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
         durlacher_house: { sockets: S('grass', 'grass', 'path', 'grass'), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
         blair_house: { sockets: S('grass', 'grass', 'path', 'grass'), tags: ['path', 'house', 'landmark', 'blocker'], biomes: { heartland: 1.0 } },
-        // --- alien asset families (Phase 6) ---
-        alien_dwelling: { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: B(10, 5, 5, 5, 5) },
-        alien_landmark: { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: B(8, 4, 4, 4, 4) },
-        alien_crystal:  { sockets: S(g, g, g, g), tags: ['blocker'], biomes: B(6, 4, 4, 4, 4) },
-        alien_river:    { sockets: S(p, g, p, g), tags: ['path', 'water'], biomes: B(0, 0, 0, 0, 0) },
-      };
+        // --- alien asset families (ALIEN PLANET; GLBs in models/alien_tiles.glb) ---
+                // Re-keyed to the five internal biome slots (Homeglade / Crystal Wastes / Ashveil / Bloomveld / Spirewood).
+                alien_dwelling: { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: { heartland: 3.0 } },
+                alien_landmark: { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { heartland: 2.0, pinewood: 1.5 } },
+                alien_crystal:  { sockets: S(g, g, g, g), tags: ['blocker'], biomes: { desert: 4.0 } },
+
+                // --- Wave 1 alien tiles (ALIEN PLANET) ---
+                // Homeglade (heartland)
+                alien_meadow:   { sockets: S(g, g, g, g), tags: ['open'], biomes: { heartland: 2.0 } },
+                alien_grove:    { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { heartland: 1.5 } },
+                alien_stones:   { sockets: S(g, g, g, g), tags: ['hills', 'blocker'], biomes: { heartland: 1.2 } },
+                pod_dwelling:   { sockets: S(g, g, p, g), tags: ['path', 'house', 'blocker'], biomes: { heartland: 2.5 } },
+                glowpool:       { sockets: S(g, g, g, g), tags: ['water', 'blocker'], biomes: { heartland: 0.8 } },
+                // Crystal Wastes (desert)
+                crystal_field_a: { sockets: S(g, g, g, g), tags: ['open'], biomes: { desert: 1.5 } },
+                crystal_field_b: { sockets: S(g, g, g, g), tags: ['open'], biomes: { desert: 1.2 } },
+                crystal_spire:   { sockets: S(g, g, g, g), tags: ['landmark', 'blocker'], biomes: { desert: 2.5 } },
+                // Spirewood (pinewood)
+                spire_forest_a: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { pinewood: 3.0 } },
+                spire_forest_b: { sockets: S(g, g, g, g), tags: ['forest', 'blocker'], biomes: { pinewood: 2.5 } },
+              };
 
 export const MODEL_IDS = Object.keys(MODELS);
 export const FALLBACK_MODEL = 'meadow';

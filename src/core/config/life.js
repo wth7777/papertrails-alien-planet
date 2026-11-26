@@ -13,12 +13,11 @@ export const life = {
 
   biomes: {
     //            leaves dust  gusts snow  petals rain  mist  fireflies butterflies clouds birds
-    heartland: { leaves: 0.8, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 0.0, rain: 0.0, mist: 0.0, fireflies: 0.3, butterflies: 0.5, clouds: 0.8, birds: 1.0 },
-    desert:    { leaves: 0.0, dust: 1.0, gusts: 1.0, snow: 0.0, petals: 0.0, rain: 0.0, mist: 0.0, fireflies: 0.0, butterflies: 0.0, clouds: 0.7, birds: 0.5 },
-    snow:      { leaves: 0.0, dust: 0.0, gusts: 0.0, snow: 1.0, petals: 0.0, rain: 0.0, mist: 0.25, fireflies: 0.0, butterflies: 0.0, clouds: 0.6, birds: 0.5 },
-    blossom:   { leaves: 0.0, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 1.0, rain: 0.0, mist: 0.0, fireflies: 0.75, butterflies: 1.0, clouds: 0.7, birds: 1.0 },
-    pinewood:  { leaves: 0.12, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 0.0, rain: 1.0, mist: 1.0, fireflies: 1.0, butterflies: 0.0, clouds: 0.6, birds: 0.6 },
-    alien:     { leaves: 0.0, dust: 0.5, gusts: 0.3, snow: 0.0, petals: 0.0, rain: 0.0, mist: 0.6, fireflies: 0.7, butterflies: 0.0, clouds: 0.5, birds: 0.0 },
+    heartland: { leaves: 0.0, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 0.0, rain: 0.0, mist: 0.0, fireflies: 0.3, butterflies: 0.0, clouds: 0.8, birds: 0.0 },
+    desert:    { leaves: 0.0, dust: 0.5, gusts: 0.3, snow: 0.0, petals: 0.0, rain: 0.0, mist: 0.6, fireflies: 0.7, butterflies: 0.0, clouds: 0.5, birds: 0.0 },
+    snow:      { leaves: 0.0, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 0.0, rain: 0.0, mist: 0.25, fireflies: 0.0, butterflies: 0.0, clouds: 0.6, birds: 0.0 },
+    blossom:   { leaves: 0.0, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 1.0, rain: 0.0, mist: 0.0, fireflies: 0.75, butterflies: 0.0, clouds: 0.7, birds: 0.0 },
+    pinewood:  { leaves: 0.12, dust: 0.0, gusts: 0.0, snow: 0.0, petals: 0.0, rain: 1.0, mist: 1.0, fireflies: 1.0, butterflies: 0.0, clouds: 0.6, birds: 0.0 },
   },
 
   /** Pool sizes (instances). Everything lives in two draw calls, so these only cost a few triangles each. */

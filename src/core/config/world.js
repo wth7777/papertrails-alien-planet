@@ -105,30 +105,34 @@ export const world = {
   // The page blends the transforms of neighbouring cells over one tile; a risen tile uses the biome of its own cell.
   biomeTintEnabled: true,
   /** Biomes whose prop tint skips reeds, rocks, haystacks, fences, roofs, logs (they keep their heartland colours). */
-  biomeTintKeep: { blossom: true },
+  biomeTintKeep: {},
+  // ALIEN PLANET palettes (ids are internal slots; see core/biomes.js). The transforms act on the baked
+  // page print (ground) and the risen paper props (prop); path recolours the printed roads per region.
   biomeTint: {
-    heartland: { ground: {}, prop: {} },
-    desert: {
-      ground: { tint: '#e2b878', amount: 0.86, gain: 0.5, lift: 0.86, keepWater: 0.75 },
-      prop: { hue: 8, sat: 0.66, tint: '#d8b877', amount: 0.36, gain: 1.1, lift: 0.3, keepWater: 0.6 },
-      path: { color: '#eed199', edge: '#c99a5e', amount: 0.9, edgeAmount: 0.3 }, // fixer pass: warm packed sand ~10 % lighter than the ground (was near-white tape)
+    heartland: { // Homeglade: teal moss meadows, warm glow spores
+      ground: { tint: '#8fc4a8', amount: 0.82, gain: 0.5, lift: 0.78, keepWater: 0.7 },
+      prop: { hue: 90, sat: 0.72, tint: '#8fd8b4', amount: 0.38, gain: 1.1, lift: 0.32, keepWater: 0.6 },
+      path: { color: '#b2dcc2', edge: '#5e8f78', amount: 0.9, edgeAmount: 0.3 },
     },
-    snow: {
-      ground: { sat: 0.7, tint: '#d6e3f6', amount: 0.9, gain: 0.17, lift: 0.88, keepWater: 0.45 }, // look pass: flatter (gain 0.3 -> 0.17): the inked grass ticks of shared tiles read as dotted streaks on the snow
-      // look pass: amount 0.58 -> 0.34, lift 0.92 -> 0.7: shared props (bushes, reeds, hills card) were washed into pale ghosts
-      prop: { hue: 10, sat: 0.6, tint: '#d3e2f5', amount: 0.34, gain: 0.7, lift: 0.7, keepWater: 0.4 },
-      path: { color: '#b0c0da', edge: '#a3b3cf', amount: 1.9 /* 0.9 + mask gain, see book.js */, edgeAmount: 0.3 }, // fixer pass: trodden snow ~9 % darker than the snow (was a blue-grey asphalt slab)
+    desert: { // Crystal Wastes: lavender sand, cyan crystal light
+      ground: { tint: '#c9aee8', amount: 0.85, gain: 0.5, lift: 0.85, keepWater: 0.7 },
+      prop: { hue: -30, sat: 0.7, tint: '#a8dce8', amount: 0.4, gain: 1.15, lift: 0.35, keepWater: 0.6 },
+      path: { color: '#d8c2ee', edge: '#8f78b8', amount: 0.9, edgeAmount: 0.3 },
     },
-    blossom: {
-      ground: { hue: 14, sat: 1.15, tint: '#9cc468', amount: 0.3, gain: 1.6, lift: 0.55, keepWater: 0.9 },
-      // look pass: hue -13 -> -5, amount 0.16 -> 0.07: generic bushes / reeds were turning red-pink
-      prop: { hue: -5, sat: 1.04, tint: '#f7bfcd', amount: 0.07, gain: 1.0, lift: 0.35, keepWater: 0.9 },
-      path: { color: '#f1e3c2', edge: '#b3975f', amount: 0.6, edgeAmount: 0.3 }, // cream garden path (the ground tint turned it lime)
+    snow: { // Ashveil: pale ash fall, bone-white ground, blue-grey props
+      ground: { sat: 0.45, tint: '#dfe4ea', amount: 0.9, gain: 0.18, lift: 0.87, keepWater: 0.4 },
+      prop: { hue: 190, sat: 0.5, tint: '#c2ccd8', amount: 0.34, gain: 0.75, lift: 0.65, keepWater: 0.4 },
+      path: { color: '#b0bac6', edge: '#8a94a2', amount: 1.9, edgeAmount: 0.3 },
     },
-    pinewood: {
-      ground: { hue: 10, sat: 0.9, tint: '#55766a', amount: 0.62, gain: 1.6, lift: 0.5, keepWater: 0.7 },
-      prop: { hue: 34, sat: 0.85, tint: '#4d7468', amount: 0.36, gain: 1.5, lift: 0.4, mul: 0.92, keepWater: 0.7 },
-      path: { color: '#c2b187', edge: '#5d5b3e', amount: 0.75, edgeAmount: 0.3 }, // pine-needle track: the one warm line in the teal wood
+    blossom: { // Bloomveld: plum-magenta ground, bioluminescent pink/cyan flora
+      ground: { hue: 45, sat: 1.15, tint: '#b07cc8', amount: 0.62, gain: 1.5, lift: 0.55, keepWater: 0.85 },
+      prop: { hue: -20, sat: 1.05, tint: '#ff9ad8', amount: 0.3, gain: 1.1, lift: 0.4, keepWater: 0.85 },
+      path: { color: '#d8b0e2', edge: '#9a68b2', amount: 0.7, edgeAmount: 0.3 },
+    },
+    pinewood: { // Spirewood: deep indigo-teal, dark spires, glow accents
+      ground: { hue: 195, sat: 0.85, tint: '#3f5e66', amount: 0.68, gain: 1.55, lift: 0.5, keepWater: 0.65 },
+      prop: { hue: 150, sat: 0.9, tint: '#3f7266', amount: 0.4, gain: 1.45, lift: 0.38, mul: 0.94, keepWater: 0.65 },
+      path: { color: '#8fa89e', edge: '#3e5a50', amount: 0.8, edgeAmount: 0.3 },
     },
   },
 };

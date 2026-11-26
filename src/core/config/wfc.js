@@ -75,22 +75,38 @@ export const wfc = {
   /** Chance factor for a lane to run on one more cell instead of ending at a house (lanes are at most 3 cells). */
   laneOn: 0.45,
 
-  /** Base weights per tile id (multiplied by biome / structure / adjacency factors in wfc.js). */
+  /**
+   * ALIEN PLANET base weights per tile id (multiplied by biome / structure / adjacency factors in wfc.js).
+   * weight 0 = banned everywhere (BW[t] x BMUL). The UNIVERSAL set (meadow + path/river/bridge connectors,
+   * see world/tiles.js) must NEVER be zero: chunk solvability depends on them.
+   * Earth content (cottages, churches, windmills, pines, cacti, camels' tiles ...) is retired at 0.
+   */
   weights: {
-    meadow: 1.5, meadow_flowers: 0.85, hills: 1.15, forest: 1.1, grove: 1.0, rocks: 1.0, pond: 1.0, windmill: 1.0,
-    path_straight: 3.0, path_corner: 4.0, path_t: 1.0, path_cross: 1.4, path_end: 1.8, lantern_post: 1.0,
-    house: 4.0, village: 2.2, river_straight: 1.0, river_corner: 1.0, river_source: 1.0, bridge: 1.0,
-    // Laramie geographic constraint tiles
-    rail_straight: 1.0, rail_corner: 1.0,
-    crossing: 1.0,
-    depot: 1.0,
-    // biome pass tiles
-    desert_dunes: 0.8, desert_dunes_b: 0.8, desert_dunes_c: 0.8, desert_cacti: 1.0, desert_camp: 3.0, desert_oasis: 1.3, desert_market: 2.2, desert_ruin: 1.7, snow_pines: 1.0, snow_drifts: 1.0, snow_cabin: 4.0, snow_hamlet: 2.2, frozen_pond: 1.0, blossom_orchard: 1.1, blossom_garden: 1.0, blossom_gazebo: 2.0, blossom_lane: 2.4, deep_pines: 1.1, mushroom_glade: 1.5, fallen_log: 1.0, watchtower: 2.8, church: 1.2, barn_farm: 0.6, market_square: 0.9, manor: 1.2,
-    // round 3 (tiles): hamlet set. integrator (round 3): wfc.js treats village / village_b / village_green as one hamlet family
-    // (settlement factor, clustering bonus, run of at most 3); the variants lean on a village or house next to them.
-    village_b: 1.8, village_green: 1.4, river_reeds: 0.5,
-    // alien asset families (Phase 6) - high base weight so they dominate the alien biome
-    alien_dwelling: 3.0, alien_landmark: 2.0, alien_crystal: 2.0, alien_river: 1.5,
+    // universal connectors + fallback
+    meadow: 1.5, path_straight: 3.0, path_corner: 4.0, path_t: 1.0, path_cross: 1.4, path_end: 1.8,
+    river_straight: 1.0, river_corner: 1.0, river_source: 1.0, bridge: 1.0,
+    lantern_post: 1.0,
+    // abstract paper landforms - read alien once the biome tints are applied
+    meadow_flowers: 0.5, hills: 0.9, rocks: 0.8,
+    // kept for their silhouettes (dunes / ruin colonnades / drifts / mushrooms / tower / log)
+    desert_dunes: 0.8, desert_dunes_b: 0.8, desert_dunes_c: 0.8, desert_ruin: 1.4,
+    snow_drifts: 1.0, mushroom_glade: 1.5, fallen_log: 1.0, watchtower: 1.6,
+    // ALIEN PLANET families (models/alien_tiles.glb)
+    alien_dwelling: 3.0, alien_landmark: 2.0, alien_crystal: 2.0,
+    // Wave 1 alien tiles
+    alien_meadow: 1.5, alien_grove: 1.2, alien_stones: 1.0, pod_dwelling: 2.0, glowpool: 0.8,
+    crystal_field_a: 1.4, crystal_field_b: 1.2, crystal_spire: 1.8,
+    spire_forest_a: 2.0, spire_forest_b: 1.8,
+    // retired earth / Laramie content (banned everywhere)
+    forest: 0, grove: 0, pond: 0, windmill: 0, house: 0, village: 0, village_b: 0, village_green: 0,
+    river_reeds: 0, rail_straight: 0, rail_corner: 0, crossing: 0, depot: 0,
+    desert_cacti: 0, desert_camp: 0, desert_oasis: 0, desert_market: 0,
+    snow_pines: 0, snow_cabin: 0, snow_hamlet: 0, frozen_pond: 0,
+    blossom_orchard: 0, blossom_garden: 0, blossom_gazebo: 0, blossom_lane: 0,
+    deep_pines: 0, church: 0, barn_farm: 0, market_square: 0, manor: 0,
+    house_1: 0, house_2: 0, house_3: 0, manor_2: 0, manor_3: 0,
+    city_hall: 0, masonic_temple: 0, st_matthews_cathedral: 0, first_interstate_bank: 0,
+    albany_courthouse: 0, wyo_theatre: 0, laramie_fire_station: 0, durlacher_house: 0, blair_house: 0,
   },
 
   /**
@@ -103,5 +119,9 @@ export const wfc = {
     meadow: [0, 1, 2, 3], meadow_flowers: [0, 1, 2, 3], rocks: [0, 1, 2, 3], pond: [0, 1, 3] /* round 3: the boathouse stands on the north bank (never between camera and water) */,
     hills: [0], forest: [0, 1, 2, 3], grove: [0, 1, 2, 3], windmill: [0, 1, 2, 3],
     desert_dunes: [0, 2], desert_dunes_b: [0, 2], desert_dunes_c: [0, 2], desert_cacti: [0, 1, 2, 3], desert_oasis: [0, 1, 2, 3], desert_ruin: [0, 2], snow_pines: [0, 1, 2, 3], snow_drifts: [0, 2], frozen_pond: [0], blossom_orchard: [0, 1, 2, 3], blossom_garden: [0, 1, 2, 3], deep_pines: [0, 1, 2, 3], mushroom_glade: [0, 1, 2, 3], fallen_log: [0, 1, 2, 3], barn_farm: [0, 1, 2, 3],
+    // Wave 1 alien all-grass tiles (free rotation)
+    alien_meadow: [0, 1, 2, 3], alien_grove: [0, 1, 2, 3], alien_stones: [0, 1, 2, 3],
+    crystal_field_a: [0, 1, 2, 3], crystal_field_b: [0, 1, 2, 3],
+    spire_forest_a: [0, 1, 2, 3], spire_forest_b: [0, 1, 2, 3],
   },
 };

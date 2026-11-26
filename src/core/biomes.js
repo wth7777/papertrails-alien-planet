@@ -5,14 +5,16 @@
 // The site at the origin is always 'heartland' (the original look) and its four neighbours are fixed so every
 // biome lies within ~12 tiles of the start: east = desert, west = snow, south = blossom, north = pinewood.
 //
-//   heartland  the original warm autumn farmland            (leaves drifting, clear)
-//   desert     sand, dunes, cacti, tents, oasis              (heat haze, dust motes, hard sun)
-//   snow       snowy pines, cabins, frozen ponds             (snowfall, cool light)
-//   blossom    spring green, pink blossom trees, gardens     (petals, butterflies)
-//   pinewood   dark misty conifer forest, mushrooms, marsh   (light rain / mist, fireflies at night)
+// ALIEN PLANET: the five biome slots are re-themed as alien regions (ids are internal; the player
+// never sees them). Content, palettes, weather and fauna live in the config tables.
+//   heartland  Homeglade      - teal moss meadows, pod dwellings, glow spores (the start region)
+//   desert     Crystal Wastes - lavender sand, crystal fields, ancient ruins (heat dust, hard sun)
+//   snow       Ashveil        - pale ash fall, bone spires, frozen mist (cool grey light)
+//   blossom    Bloomveld      - bioluminescent bulb meadows, spore-petals (magenta-plum ground)
+//   pinewood   Spirewood      - tall dark spire trees, giant mushrooms, glow fireflies (indigo mist)
 
-export const BIOMES = ['heartland', 'desert', 'snow', 'blossom', 'pinewood', 'alien'];
-export const BIOME_INDEX = { heartland: 0, desert: 1, snow: 2, blossom: 3, pinewood: 4, alien: 5 };
+export const BIOMES = ['heartland', 'desert', 'snow', 'blossom', 'pinewood'];
+export const BIOME_INDEX = { heartland: 0, desert: 1, snow: 2, blossom: 3, pinewood: 4 };
 /** Grid pitch of the Voronoi sites, in tiles. */
 export const BIOME_SITE = 11;
 
@@ -28,8 +30,6 @@ function siteBiome(seed, gx, gy) {
   if (gy === 0 && gx === -1) return 2;
   if (gx === 0 && gy === 1) return 3;
   if (gx === 0 && gy === -1) return 4;
-  if (gy === 0 && gx === 2) return 5;
-  if (gy === 0 && gx === -2) return 5;
   const r = h2(seed, gx, gy, 3);
   return r < 0.3 ? 0 : 1 + Math.min(3, Math.floor(((r - 0.3) / 0.7) * 4));
 }

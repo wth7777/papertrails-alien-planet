@@ -28,7 +28,7 @@ import { CONFIG } from '../core/config.js';
 import { hash2 } from '../core/rng.js';
 import { TILES, FALLBACK_TILE, getTile, socketsOf, OPTIONS, biomeMultiplier } from './tiles.js';
 import { BIOMES, biomeIndexAt, biomeAt } from '../core/biomes.js';
-import { BUILDING_OPTION_INDICES } from '../geo/constraints.js';
+import { BUILDING_OPTION_INDICES } from './buildingOptions.js';
 
 const N = 8; // chunk edge (cells)
 const NN = N * N;
