@@ -404,6 +404,10 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
       protos.set(id, buildPlaceholderTile(id, materials));
     }
   }
+  // For alien world: use alien_meadow as alternative to meadow fallback
+  if (!protos.has(FALLBACK_MODEL) && protos.has('alien_meadow')) {
+    protos.set(FALLBACK_MODEL, protos.get('alien_meadow').clone(true));
+  }
 
   let alienPlayer = null;
   if (alienPlayerGltf && alienPlayerGltf.scene) {
