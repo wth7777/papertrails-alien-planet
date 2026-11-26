@@ -2,6 +2,8 @@
 export const assets = {
   tilesUrl: './models/tiles.glb',
   travellerUrl: './models/traveller.glb',
+  /** Alien player model (round green cute alien). */
+  alienPlayerUrl: './models/alien_player.glb',
   /** Alien asset family tiles (Phase 6). Loaded alongside tiles.glb so alien models
    *  register in the MODELS prototype registry. */
   alienTilesUrl: './models/alien_tiles.glb',

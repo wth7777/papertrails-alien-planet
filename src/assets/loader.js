@@ -327,11 +327,12 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
 
   // Load textures FIRST so they're available for material creation
   const noTex = () => ({ paper: null, paperNormal: null, paperRough: null, manifest: null, facadeAtlas: null });
-  const [textures, tilesGltf, alienGltf, travGltf, meta] = await Promise.all([
+  const [textures, tilesGltf, alienGltf, travGltf, alienPlayerGltf, meta] = await Promise.all([
     loadTextures(A, anisotropy).catch(noTex),
     loadGLTF(A.tilesUrl),
     loadGLTF(A.alienTilesUrl).catch(() => null),
     loadGLTF(A.travellerUrl),
+    loadGLTF(A.alienPlayerUrl).catch(() => null),
     fetchJSON(A.metaUrl),
   ]);
 
@@ -404,6 +405,20 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
     }
   }
 
+  let alienPlayer = null;
+  if (alienPlayerGltf && alienPlayerGltf.scene) {
+    try {
+      const node = alienPlayerGltf.scene.getObjectByName('alien_player') || alienPlayerGltf.scene.children[0];
+      node.removeFromParent();
+      node.position.set(0, 0, 0); node.quaternion.identity(); node.scale.set(1, 1, 1);
+      node.name = 'alien_player';
+      alienPlayer = node;
+    } catch (err) {
+      warn('alienPlayer failed:', err && err.message);
+      alienPlayer = null;
+    }
+  }
+
   let traveller = null;
   if (travGltf && travGltf.scene) {
     try {
@@ -438,6 +453,7 @@ export async function loadAssets({ materials, renderer, quality } = {}) {
       return protos.get(FALLBACK_MODEL);
     },
     traveller,
+    alienPlayer,
     textures,
     modelIds: Array.from(protos.keys()),
     source,

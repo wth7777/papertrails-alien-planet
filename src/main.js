@@ -1,5 +1,5 @@
 // Pop-up Atlas composition root.
-// URL params: ?seed=N  ?quality=low|med|high  ?mute=1  ?hint=0  ?night=1  ?life=0  ?animals=0  ?diag=1
+// URL params: ?seed=N  ?quality=low|med|high  ?mute=1  ?hint=0  ?night=1  ?life=0  ?diag=1
 import * as THREE from 'three';
 import { CONFIG, QUALITY, TILE_SIZE } from './core/config.js';
 import { bus } from './core/events.js';
@@ -8,7 +8,7 @@ import { createLoop } from './core/loop.js';
 import { loadAssets } from './assets/loader.js';
 import { createWFC } from './world/wfc.js';
 import { createWorld } from './world/world.js';
-import { createTraveller } from './player/traveller.js';
+import { createAlienPlayer } from './player/alienPlayer.js';
 import { createControls } from './player/controls.js';
 import { createFollowCamera } from './camera/follow.js';
 import { createRenderer } from './render/renderer.js';
@@ -19,7 +19,7 @@ import { createPaperAudio } from './audio/paper.js';
 import { createMusic } from './audio/music.js';
 import { createDayNight } from './render/daynight.js';
 import { createLife } from './life/life.js';
-import { createAnimals } from './life/animals.js';
+// import { createAnimals } from './life/animals.js'; // DISABLED: no earth animals
 import { createGame } from './game/index.js';
 import { createViews } from './camera/views.js';
 // Allocation-free two-dimensional length.
@@ -119,16 +119,16 @@ async function boot() {
   diagLog('WFC created');
   
   const world = createWorld({ scene, assets, wfc, materials, quality });
-  diagLog('world created');
-  
-  const traveller = createTraveller({ scene, assets, world, materials });
-  diagLog('traveller created');
-  
-  const follow = createFollowCamera({ aspect: window.innerWidth / Math.max(1, window.innerHeight) });
-  diagLog('follow camera created');
-  
-  const controls = createControls({ domElement: canvas, camera: follow.camera, traveller });
-  diagLog('controls created');
+    diagLog('world created');
+
+    const alienPlayer = createAlienPlayer({ scene, assets, world, materials });
+    diagLog('alienPlayer created');
+
+    const follow = createFollowCamera({ aspect: window.innerWidth / Math.max(1, window.innerHeight) });
+    diagLog('follow camera created');
+
+    const controls = createControls({ domElement: canvas, camera: follow.camera, traveller: alienPlayer });
+    diagLog('controls created');
   
   const views = createViews({ follow }); // V cycles camera views
   diagLog('views created');
@@ -143,22 +143,22 @@ async function boot() {
   diagLog('music created');
   
   const daynight = createDayNight({ scene, night: params.get('night') === '1' });
-  diagLog('daynight created');
-  
-  // ambient life + weather (leaves, snow, rain, birds, chimney smoke, fireflies ...): 2 draw calls; ?life=0 disables it
-  const life = params.get('life') === '0' || CONFIG.life.enabled === false ? null : createLife({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed });
-  diagLog('life created:', !!life);
-  
-  // living animals (cats, sheep, hens, ducks ...): cut-paper cards on risen tiles, 2 draw calls; ?animals=0 disables them
-  const animals = params.get('animals') === '0' || CONFIG.animals.enabled === false ? null : createAnimals({ scene, renderer, world, wfc, traveller, daynight, assets, seed, quality });
-  diagLog('animals created:', !!animals);
-  
-  // Gameplay progress is saved independently for each world seed.
-  const game = createGame({ scene, renderer, world, wfc, traveller, follow, controls, lights, post, daynight, music, audio, life, assets, materials, seed, quality });
-  diagLog('game created');
-  
-  follow.setAssistGate(game.modal);
-  diagLog('assist gate set');
+    diagLog('daynight created');
+
+    // ambient life + weather (leaves, snow, rain, birds, chimney smoke, fireflies ...): 2 draw calls; ?life=0 disables it
+    const life = params.get('life') === '0' || CONFIG.life.enabled === false ? null : createLife({ scene, assets, wfc, world, daynight, camera: follow.camera, quality, seed });
+    diagLog('life created:', !!life);
+
+    // living animals DISABLED: no earth animals in alien world
+    const animals = null;
+    diagLog('animals created:', !!animals);
+
+    // Gameplay progress is saved independently for each world seed.
+    const game = createGame({ scene, renderer, world, wfc, traveller: alienPlayer, follow, controls, lights, post, daynight, music, audio, life, assets, materials, seed, quality });
+    diagLog('game created');
+
+    follow.setAssistGate(game.modal);
+    diagLog('assist gate set');
   // N: day / night, M: music on / off (keys only - no on-screen UI)
   window.addEventListener('keydown', (e) => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -179,34 +179,34 @@ async function boot() {
     const _right = new THREE.Vector3();
 
     function update(dt) {
-      try {
-        state.time = loop.time;
-        state.frame = loop.frame;
-        const input = controls.getInput(dt) || idle;
-        traveller.update(dt, game.modal() ? idle : input); // No walking while the atlas page is open.
-        const p = traveller.position;
-        const t = state.traveller;
-        t.x = p.x; t.y = p.y; t.z = p.z;
-        t.dirX = traveller.moveDir.x; t.dirZ = traveller.moveDir.z; t.speed = traveller.speed;
-        _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
-        const rl = hypot2(_right.x, _right.z) || 1;
-        state.listener.x = p.x; state.listener.z = p.z;
-        state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
-        world.update(dt, p, traveller.moveDir);
-        views.update(dt);
-        follow.update(dt, traveller);
-        daynight.update(dt);
-        if (life) life.update(dt, p, follow.camera);
-        if (animals) animals.update(dt);
-        game.update(dt);
-        lights.update(dt, traveller, follow.camera);
-        materials.update(dt);
-        if (enableDiag && loop.frame < 5) diagLog('update frame', loop.frame, 'OK');
-      } catch (e) {
-        diagError('update threw:', e);
-        throw e;
-      }
-    }
+          try {
+            state.time = loop.time;
+            state.frame = loop.frame;
+            const input = controls.getInput(dt) || idle;
+            alienPlayer.update(dt, game.modal() ? idle : input); // No walking while the atlas page is open.
+            const p = alienPlayer.position;
+            const t = state.traveller;
+            t.x = p.x; t.y = p.y; t.z = p.z;
+            t.dirX = alienPlayer.moveDir.x; t.dirZ = alienPlayer.moveDir.z; t.speed = alienPlayer.speed;
+            _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
+            const rl = hypot2(_right.x, _right.z) || 1;
+            state.listener.x = p.x; state.listener.z = p.z;
+            state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
+            world.update(dt, p, alienPlayer.moveDir);
+            views.update(dt);
+            follow.update(dt, alienPlayer);
+            daynight.update(dt);
+            if (life) life.update(dt, p, follow.camera);
+            // if (animals) animals.update(dt); // DISABLED
+            game.update(dt);
+            lights.update(dt, alienPlayer, follow.camera);
+            materials.update(dt);
+            if (enableDiag && loop.frame < 5) diagLog('update frame', loop.frame, 'OK');
+          } catch (e) {
+            diagError('update threw:', e);
+            throw e;
+          }
+        }
 
     function render(dt) {
       try {
@@ -263,39 +263,39 @@ async function boot() {
     diagLog('resize done');
   
     const [x, z] = initialPosition();
-    diagLog('initial position:', x, z);
-  
-    traveller.teleport(x, z);
-    diagLog('traveller teleported');
-  
-    controls.clearTarget();
-    diagLog('controls cleared');
-  
-    update(0);
-    diagLog('update(0) done');
-  
-    follow.snap(traveller);
-    diagLog('follow snapped');
-  
-    _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
-    const rl = hypot2(_right.x, _right.z) || 1;
-    state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
-    diagLog('listener init done');
-  
-    if (world.faceCamera) world.faceCamera();
-    diagLog('faceCamera done');
-  
-    if (life) life.update(0, traveller.position, follow.camera);
-    diagLog('life update(0) done');
-  
-    lights.update(0, traveller, follow.camera);
-    diagLog('lights update(0) done');
+        diagLog('initial position:', x, z);
+
+        alienPlayer.teleport(x, z);
+        diagLog('alienPlayer teleported');
+
+        controls.clearTarget();
+        diagLog('controls cleared');
+
+        update(0);
+        diagLog('update(0) done');
+
+        follow.snap(alienPlayer);
+        diagLog('follow snapped');
+
+        _right.setFromMatrixColumn(follow.camera.matrixWorld, 0);
+        const rl = hypot2(_right.x, _right.z) || 1;
+        state.listener.rightX = _right.x / rl; state.listener.rightZ = _right.z / rl;
+        diagLog('listener init done');
+
+        if (world.faceCamera) world.faceCamera();
+        diagLog('faceCamera done');
+
+        if (life) life.update(0, alienPlayer.position, follow.camera);
+        diagLog('life update(0) done');
+
+        lights.update(0, alienPlayer, follow.camera);
+        diagLog('lights update(0) done');
   
     render(0);
     diagLog('render(0) done — FIRST FRAME');
   
-    window.__debug = { loop, game, traveller, world, wfc, renderer, scene, camera: follow.camera, assets, materials, post, follow, controls, views, lights, audio, music, daynight, life, animals, state };
-    diagLog('__debug exposed');
+    window.__debug = { loop, game, traveller: alienPlayer, world, wfc, renderer, scene, camera: follow.camera, assets, materials, post, follow, controls, views, lights, audio, music, daynight, life, animals, state };
+        diagLog('__debug exposed');
   
     loop.start();
     diagLog('loop.start() called — ANIMATION LOOP STARTED');
